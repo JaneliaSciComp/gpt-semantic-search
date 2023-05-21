@@ -140,5 +140,13 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred: {e}")
 
+    st.markdown("[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)")
+
+    hide_footer_style = """
+    <style>
+    .footer {visibility: hidden;}    
+    """
+    st.markdown(hide_footer_style, unsafe_allow_html=True)
+
 if __name__ == '__main__':
     main()
