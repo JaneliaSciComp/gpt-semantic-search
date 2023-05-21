@@ -22,7 +22,7 @@ You can verify that Weaviate is running by opening [http://localhost:8080]() in 
 
 ### Download data sources
 
-For now, you can experiment easily by copying the wiki data source from shared storage on NRS:
+For now, you can experiment easily by copying the data sources from shared storage on NRS:
 
     mkdir ./data
     copy -R /nrs/scicompsoft/rokicki/semantic-search/wiki ./data
@@ -31,13 +31,23 @@ If you want the latest data, you can use the [DownloadConfluence.ipynb](notebook
 
 ### Run indexing
 
-Launch the notebook and work through the cells one by one:
+Index a Slack export to the Janelia class in Weaviate:
 
-    jupyter notebook LlamaIndexToWeaviate.ipynb
+    ./index_slack.py -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
+
+Add a wiki export:
+
+    ./index_wiki.py -i ./data/wiki -c Janelia
+
 
 ### Start semantic search webapp
 
     streamlit run ./serve.py
+
+If you want to pass arguments, such as a different class prefix, use two dashes:
+
+    streamlit run ./serve.py -- -c MyPrefix
+
 
 ## Development Notes
 

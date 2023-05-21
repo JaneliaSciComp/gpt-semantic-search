@@ -7,16 +7,9 @@ import glob
 import json
 import logging
 import warnings
-
 from decimal import Decimal
 
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.chat_models import ChatOpenAI
-from llama_index import Document, LLMPredictor, PromptHelper, ServiceContext, LangchainEmbedding, GPTVectorStoreIndex
-from llama_index.vector_stores import WeaviateVectorStore
-from llama_index.storage.storage_context import StorageContext
-
-import weaviate
+from weaviate_indexer import Indexer
 
 warnings.simplefilter("ignore", ResourceWarning)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -25,9 +18,6 @@ logger = logging.getLogger(__name__)
 # Constants
 SOURCE = "slack"
 DOCUMENT_PAUSE_SECS = 300
-MAX_INPUT_SIZE = 4096
-NUM_OUTPUT = 256
-MAX_CHUNK_OVERLAP = 20
 IGNORED_SUBTYPES = set(['channel_join','channel_leave','bot_message'])
 
 
@@ -171,7 +161,7 @@ class ArchivedSlackLoader():
     def create_document(self, channel_id, ts, doc_text):
         logger.info("--------------------------------------------------")
         logger.info(f"Document[channel={channel_id},ts={ts}]")
-        logger.info(doc_text)
+        logger.debug(doc_text)
         return Document(doc_text, extra_info={"source": SOURCE, "channel": channel_id, "ts": ts})
 
 
@@ -238,7 +228,6 @@ def main():
     parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
     parser.add_argument('-c', '--class-prefix', type=str, default="Slack", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
     parser.add_argument('-d', '--delete-database', default=False, action=argparse.BooleanOptionalAction, help='Delete existing "<prefix>_Node" class in Weaviate before starting.')
-    parser.add_argument('-s', '--storage-dir', type=str, default="./storage/index/slack", help='Path to the index storage directory.')
     args = parser.parse_args()
 
     # Load the Slack archive from disk and process it into documents
@@ -246,46 +235,9 @@ def main():
     documents = loader.load_all_documents()
     logger.info(f"Loaded {len(documents)} documents")
 
-    # Connect to Weaviate database
-    client = weaviate.Client(args.weaviate_url)
-
-    if not client.is_live():
-        logger.error(f"Weaviate is not live at {args.weaviate_url}")
-        sys.exit()
-
-    if not client.is_live():
-        logger.error(f"Weaviate is not ready at {args.weaviate_url}")
-        sys.exit()
-
-    logger.info(f"Connected to Weaviate at {args.weaviate_url} (Version {client.get_meta()['version']})")
-
-    # Delete existing data in Weaviate
-    class_prefix = args.class_prefix
-    if args.delete_database:
-        class_name = f"{class_prefix}_Node"
-        logger.warning(f"Deleting {class_name} class in Weaviate")
-        client.schema.delete_class(class_name)
-
-    # Create LLM embedding model
-    llm = ChatOpenAI(temperature=0.5, model_name="gpt-3.5-turbo-0301")
-    llm_predictor = LLMPredictor(llm=llm)
-    embed_model = LangchainEmbedding(OpenAIEmbeddings())
-    prompt_helper = PromptHelper(MAX_INPUT_SIZE, NUM_OUTPUT, MAX_CHUNK_OVERLAP)
-    service_context = ServiceContext.from_defaults(embed_model=embed_model, prompt_helper=prompt_helper)
-
-    # Embed the documents and persist the embeddings into Weaviate    
-    logger.info("Creating GPT vector store index")
-    vector_store = WeaviateVectorStore(weaviate_client=client, class_prefix=class_prefix)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    index = GPTVectorStoreIndex.from_documents(documents, storage_context=storage_context, service_context=service_context)
-    index
-
-    # Persist the docstore and index_store
-    # This is currently required although in theory Weaviate should be able to handle these as well
-    #logger.info(f"Persisting index to {args.storage_dir}")
-    #storage_context.persist(persist_dir=args.storage_dir)
-
-    logger.info(f"Completed indexing {args.input} into '{class_prefix}_Node'")
+    # Index the documents in Weaviate
+    indexer = Indexer(args.weaviate_url, args.class_prefix, args.delete_database)
+    indexer.index(documents)
 
 
 if __name__ == '__main__':
