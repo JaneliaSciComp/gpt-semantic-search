@@ -1,5 +1,6 @@
 version: '3.4'
 services:
+
   weaviate:
     image: semitechnologies/weaviate:1.19.2
     ports:
@@ -13,4 +14,11 @@ services:
       DEFAULT_VECTORIZER_MODULE: 'none'
       CLUSTER_HOSTNAME: 'node1'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+
+  semantic-search:
+    image: registry.int.janelia.org/scsw/semantic-search
+    ports:
+    - 8501:8501
+    restart: on-failure:0
+
 
