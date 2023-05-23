@@ -22,5 +22,6 @@ services:
     restart: on-failure:0
     environment:
       STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
-
+      WEAVIATE_URL: 'http://weaviate:8080'
+      OPENAI_API_KEY:
 
