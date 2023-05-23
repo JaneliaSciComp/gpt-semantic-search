@@ -7,7 +7,7 @@ services:
     - 8080:8080
     restart: on-failure:0
     volumes:
-    - ./storage/weaviate:/var/lib/weaviate
+    - $WEAVIATE_STORAGE_PATH:/var/lib/weaviate
     environment:
       QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
@@ -16,9 +16,11 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
 
   semantic-search:
-    image: registry.int.janelia.org/scsw/semantic-search
+    image: registry.int.janelia.org/scsw/semantic-search:1.0.2
     ports:
     - 8501:8501
     restart: on-failure:0
+    environment:
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
 
 
