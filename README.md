@@ -1,10 +1,19 @@
 # gpt-semantic-search
 
-Semantic search for Janelia resources using OpenAI GPT models.
+Semantic search service for Janelia resources using OpenAI GPT models.
 
 Largely based on [this tutorial](https://alphasec.io/query-your-own-documents-with-llamaindex-and-langchain/).
 
-## Getting started
+## Running
+
+This service requires [Docker](https://docs.docker.com/get-docker/) to be installed. To run, simply clone this repo and start the Compose deployment:
+
+    docker compose up -d
+
+This will start both the Weaviate vector database, and the Streamlit webapp. You can then access the webapp at [http://localhost:8501]().
+
+
+## Development
 
 ### Install dependencies
 
@@ -16,9 +25,9 @@ Create a virtualenv and install the dependencies:
 
 ### Launch Weaviate database
 
-This requires [Docker](https://docs.docker.com/get-docker/) to be installed.
+You can run just Weaviate as follows:
 
-    docker compose up -d
+    docker compose up weaviate -d
 
 You can verify that Weaviate is running by opening [http://localhost:8080]() in your browser.
 
@@ -39,7 +48,7 @@ If you are at Janelia you can experiment easily by copying the data sources from
 
 If you want to download the latest data, you can use the [DownloadConfluence.ipynb](notebooks/DownloadConfluence.ipynb) notebook to download the wiki for yourself. You can export data from Slack using their [export tool](https://slack.com/help/articles/201658943-Export-your-workspace-data).
 
-## Run indexing
+### Run indexing
 
 Index a Slack export to the Janelia class in Weaviate:
 
@@ -49,7 +58,7 @@ Add a wiki export:
 
     ./index_wiki.py -i ./data/wiki -c Janelia
 
-## Start semantic search webapp
+### Start semantic search webapp
 
     streamlit run ./serve.py
 
@@ -66,3 +75,4 @@ You need to install a Jupyter kernel that point to the virtualenv:
     python3 -m ipykernel install --user --name=env
 
 And then select the env as the Python Interpreter for the notebook.
+
