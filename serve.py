@@ -17,9 +17,10 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.vector_stores import WeaviateVectorStore
 from llama_index.vector_stores.types import VectorStoreQueryMode
 
-from slack_sdk import WebClient
-import streamlit as st
 import weaviate
+import streamlit as st
+from slack_sdk import WebClient
+
 
 warnings.simplefilter("ignore", ResourceWarning)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -48,47 +49,55 @@ def escape_text(text):
     return text
 
 
-def get_message_link(slack_client, channel, ts):
-    res = slack_client.chat_getPermalink(channel=channel, message_ts=ts)
+@st.cache_data
+def get_message_link(_slack_client, channel, ts):
+    res = _slack_client.chat_getPermalink(channel=channel, message_ts=ts)
     if res['ok']:
         return res['permalink']
     
-    
-def main():
-    
-    parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
-    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
-    parser.add_argument('-c', '--class-prefix', type=str, default="Janelia", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
-    parser.add_argument('-m', '--model', type=str, default="text-curie-001", help='OpenAI model to use for query completion.')
-    args = parser.parse_args()
-        
-    # Based on experimentation, gpt-3.5-turbo does not do well with Slack documents, using text-curie-001 for now. 
-    llm = ChatOpenAI(temperature=0.8, model_name=args.model)
-    llm_predictor = LLMPredictor(llm=llm)
-    embed_model = LangchainEmbedding(OpenAIEmbeddings())
-    prompt_helper = PromptHelper(MAX_INPUT_SIZE, NUM_OUTPUT, MAX_CHUNK_OVERLAP)
-    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embed_model, prompt_helper=prompt_helper)
 
-    # Connect to Weaviate database
-    client = weaviate.Client(args.weaviate_url)
+@st.cache_resource
+def get_weaviate_client(weaviate_url):
+
+    client = weaviate.Client(weaviate_url)
 
     if not client.is_live():
-        logger.error(f"Weaviate is not live at {args.weaviate_url}")
-        sys.exit()
+        logger.error(f"Weaviate is not live at {weaviate_url}")
+        return None
 
     if not client.is_live():
-        logger.error(f"Weaviate is not ready at {args.weaviate_url}")
-        sys.exit()
+        logger.error(f"Weaviate is not ready at {weaviate_url}")
+        return None
 
-    vector_store = WeaviateVectorStore(weaviate_client=client, class_prefix=args.class_prefix)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    index = GPTVectorStoreIndex([], storage_context=storage_context, service_context=service_context)
+    return client
 
+
+@st.cache_resource
+def get_slack_client():
     slack_client = WebClient(token=os.environ.get('SLACK_TOKEN'))
     res = slack_client.api_test()
     if not res["ok"]:
         logger.error(f"Error initializing Slack API: {res['error']}")
         sys.exit(1)
+    
+    return slack_client
+
+
+@st.cache_resource
+def get_query_engine(weaviate_url, model, class_prefix):
+
+    weaviate_client = get_weaviate_client(weaviate_url)
+
+    # Based on experimentation, gpt-3.5-turbo does not do well with Slack documents, using text-curie-001 for now. 
+    llm = ChatOpenAI(temperature=0.8, model_name=model)
+    llm_predictor = LLMPredictor(llm=llm)
+    embed_model = LangchainEmbedding(OpenAIEmbeddings())
+    prompt_helper = PromptHelper(MAX_INPUT_SIZE, NUM_OUTPUT, MAX_CHUNK_OVERLAP)
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embed_model, prompt_helper=prompt_helper)
+    vector_store = WeaviateVectorStore(weaviate_client=weaviate_client, class_prefix=class_prefix)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    index = GPTVectorStoreIndex([], storage_context=storage_context, service_context=service_context)
+
 
     # configure retriever
     retriever = VectorIndexRetriever(
@@ -107,6 +116,25 @@ def main():
         response_synthesizer=synth,
     )
 
+    return query_engine
+
+
+def main():
+    
+    parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
+    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
+    parser.add_argument('-c', '--class-prefix', type=str, default="Janelia", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
+    parser.add_argument('-m', '--model', type=str, default="text-curie-001", help='OpenAI model to use for query completion.')
+    args = parser.parse_args()
+        
+    weaviate_client = get_weaviate_client(args.weaviate_url)
+    if not weaviate_client: 
+        sys.exit()
+
+    query_engine = get_query_engine(args.weaviate_url, args.model, args.class_prefix)
+
+    slack_client = get_slack_client()
+    
     st.title("Ask JaneliaGPT")
     query = st.text_input("What would you like to ask?", "")
 
@@ -142,11 +170,6 @@ def main():
 
     st.markdown("[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)")
 
-    hide_footer_style = """
-    <style>
-    .footer {visibility: hidden;}    
-    """
-    st.markdown(hide_footer_style, unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main()
