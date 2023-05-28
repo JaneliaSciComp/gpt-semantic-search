@@ -1,6 +1,7 @@
 import sys
 import logging
 import warnings
+from typing import Any, Dict, List
 
 from langchain.embeddings import OpenAIEmbeddings
 from llama_index import PromptHelper, ServiceContext, LangchainEmbedding, GPTVectorStoreIndex
@@ -18,6 +19,60 @@ MAX_INPUT_SIZE = 4096
 NUM_OUTPUT = 256
 MAX_CHUNK_OVERLAP = 20
 
+# Copied from weaviate_indexer to: 
+# 1) upgrade string->text for proper tokenization
+# Maybe more customizations in the future.
+NODE_SCHEMA: List[Dict] = [
+    {
+        "dataType": ["text"],
+        "description": "Text property",
+        "name": "text"
+    },
+    {
+        "dataType": ["text"],
+        "description": "Document id",
+        "name": "doc_id",
+    },
+    {
+        "dataType": ["text"],
+        "description": "The ref_doc_id of the Node",
+        "name": "ref_doc_id",
+    },
+    {
+        "dataType": ["text"],
+        "description": "node_info (in JSON)",
+        "name": "node_info",
+    },
+    {
+        "dataType": ["text"],
+        "description": "The relationships of the node (in JSON)",
+        "name": "relationships",
+    },
+]
+
+def create_schema(client: Any, class_prefix: str) -> None:
+    """Create schema."""
+    # first check if schema exists
+    schema = client.schema.get()
+    classes = schema["classes"]
+    existing_class_names = {c["class"] for c in classes}
+    # if schema already exists, don't create
+    class_name = _class_name(class_prefix)
+    if class_name in existing_class_names:
+        return
+
+    properties = NODE_SCHEMA
+    class_obj = {
+        "class": _class_name(class_prefix),  # <= note the capital "A".
+        "description": f"Class for {class_name}",
+        "properties": properties,
+    }
+    client.schema.create_class(class_obj)
+
+
+def _class_name(class_prefix: str) -> str:
+    """Return class name."""
+    return f"{class_prefix}_Node"
 
 class Indexer():
 
@@ -44,9 +99,13 @@ class Indexer():
         # Delete existing data in Weaviate
         class_prefix = self.class_prefix
         if self.delete_database:
-            class_name = f"{class_prefix}_Node"
+            class_name = _class_name(class_prefix)
             logger.warning(f"Deleting {class_name} class in Weaviate")
             client.schema.delete_class(class_name)
+
+            logger.info(f"Creating {class_name} class in Weaviate")
+            from llama_index.readers.weaviate.client import NODE_SCHEMA
+            create_schema(client, class_prefix)
 
         # Create LLM embedding model
         embed_model = LangchainEmbedding(OpenAIEmbeddings())

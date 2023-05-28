@@ -1,6 +1,8 @@
 # gpt-semantic-search
 
-Semantic search for Janelia resources using GPT models
+Semantic search for Janelia resources using OpenAI GPT models.
+
+Largely based on [this tutorial](https://alphasec.io/query-your-own-documents-with-llamaindex-and-langchain/).
 
 ## Getting started
 
@@ -64,4 +66,3 @@ You need to install a Jupyter kernel that point to the virtualenv:
     python3 -m ipykernel install --user --name=env
 
 And then select the env as the Python Interpreter for the notebook.
-
