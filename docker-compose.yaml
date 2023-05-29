@@ -21,7 +21,8 @@ services:
     - 8501:8501
     restart: on-failure:0
     environment:
-      STREAMLIT_BROWSER_GATHER_USAGE_STATS: 'false'
+      STREAMLIT_SERVER_FILE_WATCHER_TYPE: 'none'
+      STREAMLIT_SERVER_HEADLESS: 'true'
       WEAVIATE_URL: 'http://weaviate:8080'
       OPENAI_API_KEY:
 
