@@ -7,6 +7,7 @@ import argparse
 import textwrap
 import logging
 import warnings
+from typing import Any, Dict, List
 
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
@@ -27,9 +28,57 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Constants
+TOP_N = 3
 MAX_INPUT_SIZE = 4096
 NUM_OUTPUT = 256
 MAX_CHUNK_OVERLAP = 20
+
+SURVEY_CLASS = "SurveyResponses"
+
+NODE_SCHEMA: List[Dict] = [
+    {
+        "dataType": ["text"],
+        "description": "User query",
+        "name": "query"
+    },
+    {
+        "dataType": ["text"],
+        "description": "GPT response",
+        "name": "response"
+    },
+    {
+        "dataType": ["text"],
+        "description": "Survey response",
+        "name": "survey",
+    },
+]
+
+def create_schema(weaviate_client) -> None:
+    """Create schema."""
+    # first check if schema exists
+    schema = weaviate_client.schema.get()
+    classes = schema["classes"]
+    existing_class_names = {c["class"] for c in classes}
+    # if schema already exists, don't create
+    if SURVEY_CLASS in existing_class_names:
+        return
+
+    properties = NODE_SCHEMA
+    class_obj = {
+        "class": SURVEY_CLASS,  # <= note the capital "A".
+        "description": f"Class for survey responses",
+        "properties": properties,
+    }
+    weaviate_client.schema.create_class(class_obj)
+
+
+def add_survey(weaviate_client, query, response, survey):
+    metadata = {
+        "query": query,
+        "response": response,
+        "survey": survey,
+    }
+    weaviate_client.data_object.create(metadata, SURVEY_CLASS)
 
 
 def get_unique_nodes(nodes):
@@ -62,12 +111,10 @@ def get_weaviate_client(weaviate_url):
     client = weaviate.Client(weaviate_url)
 
     if not client.is_live():
-        logger.error(f"Weaviate is not live at {weaviate_url}")
-        return None
+        raise Exception(f"Weaviate is not live at {weaviate_url}")
 
     if not client.is_live():
-        logger.error(f"Weaviate is not ready at {weaviate_url}")
-        return None
+        raise Exception(f"Weaviate is not ready at {weaviate_url}")
 
     return client
 
@@ -84,17 +131,15 @@ def get_slack_client():
 
 
 @st.cache_resource
-def get_query_engine(weaviate_url, model, class_prefix):
-
-    weaviate_client = get_weaviate_client(weaviate_url)
+def get_query_engine(_weaviate_client, model, class_prefix):
 
     # Based on experimentation, gpt-3.5-turbo does not do well with Slack documents, using text-curie-001 for now. 
-    llm = ChatOpenAI(temperature=0.8, model_name=model)
+    llm = ChatOpenAI(temperature=0.7, model_name=model)
     llm_predictor = LLMPredictor(llm=llm)
     embed_model = LangchainEmbedding(OpenAIEmbeddings())
     prompt_helper = PromptHelper(MAX_INPUT_SIZE, NUM_OUTPUT, MAX_CHUNK_OVERLAP)
     service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embed_model, prompt_helper=prompt_helper)
-    vector_store = WeaviateVectorStore(weaviate_client=weaviate_client, class_prefix=class_prefix)
+    vector_store = WeaviateVectorStore(weaviate_client=_weaviate_client, class_prefix=class_prefix)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
     index = GPTVectorStoreIndex([], storage_context=storage_context, service_context=service_context)
 
@@ -102,9 +147,9 @@ def get_query_engine(weaviate_url, model, class_prefix):
     # configure retriever
     retriever = VectorIndexRetriever(
         index,
-        similarity_top_k=5,
+        similarity_top_k=TOP_N,
         vector_store_query_mode=VectorStoreQueryMode.HYBRID,
-        alpha=0.5,
+        alpha=0.75,
     )
 
     # configure response synthesizer
@@ -119,6 +164,34 @@ def get_query_engine(weaviate_url, model, class_prefix):
     return query_engine
 
 
+@st.cache_data
+def get_response(_query_engine, _slack_client, query):
+
+    query = re.sub("\"", "", query)
+
+    response = _query_engine.query(query)
+    msg = f"{response.response}\n\nSources:\n\n"
+    for node in get_unique_nodes(response.source_nodes):
+        extra_info = node.node.extra_info
+        text = node.node.text
+        
+        text = re.sub("\n+", " ", text)
+        text = textwrap.shorten(text, width=100, placeholder="...")
+        text = escape_text(text)
+        
+        source = extra_info['source']
+
+        if source == 'slack':
+            channel_id = extra_info['channel']
+            ts = extra_info['ts']
+            msg += f"* Slack: [{text}]({get_message_link(_slack_client, channel_id, ts)})\n"
+
+        elif source == 'wiki':
+            msg += f"* Wiki: [{extra_info['title']}]({extra_info['link']})\n"
+    
+    return msg
+
+
 def main():
     
     parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
@@ -126,50 +199,112 @@ def main():
     parser.add_argument('-c', '--class-prefix', type=str, default="Janelia", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
     parser.add_argument('-m', '--model', type=str, default="text-curie-001", help='OpenAI model to use for query completion.')
     args = parser.parse_args()
+     
+    hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .appview-container .main .block-container {
+        padding-top: 1em;
+    }
+    div.css-1544g2n {
+        padding-top: 1em;
+    }
+    [data-testid="stSidebar"] {
+        font-size: 0.8em;
+    }
+    [data-testid="stSidebar"] h1 {
+        font-size: 1.5em;
+    }
+    [data-testid="stSidebar"] h2 {
+        font-size: 1.25em;
+    }
+    [data-testid="stSidebar"] p {
+        font-size: 1em;
+    }
+    </style>
+
+    """
+    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+    with st.sidebar:
+        st.markdown(f"""
+# FAQ
+
+## How does JaneliaGPT work?
+Content from the Janelia-Software Slack and Janelia Wiki are translated into semantic vectors using OpenAI's embedding API 
+and stored in a vector database. Your query is embedded as well and used to search the database for content that is 
+semantically related to your query. The GPT language model tries to answer your question using the top {TOP_N} results.
+
+## Why is the answer unrelated to my question?
+At the moment this is just a proof of concept. It works brilliantly for some questions and fails spectacularly for others.
+Please use the survey buttons to record your experience so that we can use the results to improve the search results in future iterations. 
+
+## Why can't I find something that was posted recently?
+Source data was downloaded on May 19, 2023. If the search proves useful, we can implement automated downloading and incremental indexing. 
+
+## Where is the source code?
+[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)
+        """)
+        st.markdown("")
+
+
+    if 'survey_complete' not in st.session_state:
+        st.session_state.survey_complete = True
+
+    if 'query' not in st.session_state:
+        st.session_state.query = ""
         
     weaviate_client = get_weaviate_client(args.weaviate_url)
-    if not weaviate_client: 
-        sys.exit()
-
-    query_engine = get_query_engine(args.weaviate_url, args.model, args.class_prefix)
-
+    query_engine = get_query_engine(weaviate_client, args.model, args.class_prefix)
     slack_client = get_slack_client()
     
     st.title("Ask JaneliaGPT")
-    query = st.text_input("What would you like to ask?", "")
+    query = st.text_input("What would you like to ask?", '')
+    st.button("Submit")
+        
+    if st.session_state.query != query:
+        # First time processing the query, ask for survey response
+        st.session_state.survey_complete = False
+        st.session_state.query = query
+    
+    if query:
+        try:
+            msg = get_response(query_engine, slack_client, query)    
+            st.success(msg)
+        except Exception as e:
+            msg = f"An error occurred: {e}"
+            st.error(msg)
 
-    if st.button("Submit"):
-        if not query.strip():
-            st.error(f"Please provide the search query.")
-        else:
-            try:
-                response = query_engine.query(query)
-                msg = f"{response.response}\n\nSources:\n\n"
-                for node in get_unique_nodes(response.source_nodes):
-                    extra_info = node.node.extra_info
-                    text = node.node.text
-                    
-                    text = re.sub("\n+", " ", text)
-                    text = textwrap.shorten(text, width=80, placeholder="...")
-                    text = escape_text(text)
-                    
-                    source = extra_info['source']
+    def survey_click(survey_response):
+        st.session_state.survey = survey_response
+        st.session_state.survey_complete = True
+        create_schema(weaviate_client)
+        add_survey(weaviate_client, query, msg, survey_response)
+        logger.info(f"Logged survey response: {survey_response}")
+        del st.session_state['survey']
 
-                    if source == 'slack':
-                        channel_id = extra_info['channel']
-                        ts = extra_info['ts']
-                        msg += f"* [{text}]({get_message_link(slack_client, channel_id, ts)})\n"
+    if not st.session_state.survey_complete:
+        st.markdown(
+            """
+            <style>
+                div[data-testid="column"]:nth-of-type(1)
+                {
+                    text-align: end;
+                } 
+            </style>
+            """,unsafe_allow_html=True
+        )
 
-                    elif source == 'wiki':
-                        msg += f"* [{extra_info['title']}]({extra_info['link']})\n"
 
-                st.success(msg)
-
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-
-    st.markdown("[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)")
-
+        with st.form("survey_form"):
+            st.markdown("Was your question answered?")
+            col1, col2 = st.columns([1,1])
+            with col1:
+                st.form_submit_button("Yes", on_click=survey_click, args=('Yes', ))
+            with col2:
+                st.form_submit_button("No", on_click=survey_click, args=('NO', ))
+    
 
 if __name__ == '__main__':
     main()
