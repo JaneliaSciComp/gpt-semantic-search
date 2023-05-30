@@ -25,4 +25,5 @@ services:
       STREAMLIT_SERVER_HEADLESS: 'true'
       WEAVIATE_URL: 'http://weaviate:8080'
       OPENAI_API_KEY:
+      SLACK_TOKEN:
 
