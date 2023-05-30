@@ -16,7 +16,7 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
 
   semantic-search:
-    image: registry.int.janelia.org/scsw/semantic-search:1.0.3
+    image: registry.int.janelia.org/scsw/semantic-search:1.0.4
     ports:
     - 8501:8501
     restart: on-failure:0
