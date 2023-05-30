@@ -32,22 +32,32 @@ logging.getLogger('openai').setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# logger.setLevel(logging.DEBUG)
-# ch = logging.StreamHandler()
-# ch.setLevel(logging.DEBUG)
-# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-# ch.setFormatter(formatter)
-# logger.addHandler(ch)
-
-#logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 # Constants
 TOP_N = 3
 MAX_INPUT_SIZE = 4096
 NUM_OUTPUT = 256
 MAX_CHUNK_OVERLAP = 20
-
 SURVEY_CLASS = "SurveyResponses"
+
+FAQ = f"""
+# FAQ
+
+## How does JaneliaGPT work?
+Content from the Janelia-Software Slack and Janelia Wiki are translated into semantic vectors using OpenAI's embedding API 
+and stored in a vector database. Your query is embedded as well and used to search the database for content that is 
+semantically related to your query. The GPT language model tries to answer your question using the top {TOP_N} results.
+
+## Why is the answer unrelated to my question?
+At the moment this is just a proof of concept. It works brilliantly for some questions and fails spectacularly for others.
+Please use the survey buttons to record your experience so that we can use the results to improve the search results in future iterations. 
+
+## Why can't I find something that was posted recently?
+Source data was downloaded on May 19, 2023. If the search proves useful, we can implement automated downloading and incremental indexing. 
+
+## Where is the source code?
+[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)
+"""
 
 NODE_SCHEMA: List[Dict] = [
     {
@@ -67,7 +77,7 @@ NODE_SCHEMA: List[Dict] = [
     },
 ]
 
-def create_schema(weaviate_client) -> None:
+def create_survey_schema(weaviate_client) -> None:
     """Create schema."""
     # first check if schema exists
     schema = weaviate_client.schema.get()
@@ -86,13 +96,20 @@ def create_schema(weaviate_client) -> None:
     weaviate_client.schema.create_class(class_obj)
 
 
-def add_survey(weaviate_client, query, response, survey):
+def record_log(weaviate_client, query, response):
     metadata = {
         "query": query,
         "response": response,
+        'survey': 'Unknown'
+    }
+    return weaviate_client.data_object.create(metadata, SURVEY_CLASS)
+
+
+def record_survey(weaviate_client, db_id, survey):
+    metadata = {
         "survey": survey,
     }
-    weaviate_client.data_object.create(metadata, SURVEY_CLASS)
+    weaviate_client.data_object.update(metadata, SURVEY_CLASS, db_id)
 
 
 def get_unique_nodes(nodes):
@@ -181,6 +198,7 @@ def get_query_engine(_weaviate_client, model, class_prefix):
 @st.cache_data
 def get_response(_query_engine, _slack_client, query):
 
+    # Escape certain characters which the 
     query = re.sub("\"", "", query)
 
     response = _query_engine.query(query)
@@ -213,55 +231,34 @@ def main():
     parser.add_argument('-c', '--class-prefix', type=str, default="Janelia", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
     parser.add_argument('-m', '--model', type=str, default="text-curie-001", help='OpenAI model to use for query completion.')
     args = parser.parse_args()
-     
-    hide_streamlit_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .appview-container .main .block-container {
-        padding-top: 1em;
-    }
-    div.css-1544g2n {
-        padding-top: 1em;
-    }
-    [data-testid="stSidebar"] {
-        font-size: 0.8em;
-    }
-    [data-testid="stSidebar"] h1 {
-        font-size: 1.5em;
-    }
-    [data-testid="stSidebar"] h2 {
-        font-size: 1.25em;
-    }
-    [data-testid="stSidebar"] p {
-        font-size: 1em;
-    }
-    </style>
 
-    """
-    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        .appview-container .main .block-container {
+            padding-top: 1em;
+        }
+        div.css-1544g2n {
+            padding-top: 1em;
+        }
+        [data-testid="stSidebar"] {
+            font-size: 0.8em;
+        }
+        [data-testid="stSidebar"] h1 {
+            font-size: 1.5em;
+        }
+        [data-testid="stSidebar"] h2 {
+            font-size: 1.25em;
+        }
+        [data-testid="stSidebar"] p {
+            font-size: 1em;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     with st.sidebar:
-        st.markdown(f"""
-# FAQ
-
-## How does JaneliaGPT work?
-Content from the Janelia-Software Slack and Janelia Wiki are translated into semantic vectors using OpenAI's embedding API 
-and stored in a vector database. Your query is embedded as well and used to search the database for content that is 
-semantically related to your query. The GPT language model tries to answer your question using the top {TOP_N} results.
-
-## Why is the answer unrelated to my question?
-At the moment this is just a proof of concept. It works brilliantly for some questions and fails spectacularly for others.
-Please use the survey buttons to record your experience so that we can use the results to improve the search results in future iterations. 
-
-## Why can't I find something that was posted recently?
-Source data was downloaded on May 19, 2023. If the search proves useful, we can implement automated downloading and incremental indexing. 
-
-## Where is the source code?
-[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)
-        """)
-        st.markdown("")
-
+        st.markdown(FAQ)
 
     if 'survey_complete' not in st.session_state:
         st.session_state.survey_complete = True
@@ -275,28 +272,36 @@ Source data was downloaded on May 19, 2023. If the search proves useful, we can 
     
     st.title("Ask JaneliaGPT")
     query = st.text_input("What would you like to ask?", '')
-    st.button("Submit")
-        
-    if st.session_state.query != query:
-        # First time processing the query, ask for survey response
-        st.session_state.survey_complete = False
-        st.session_state.query = query
-    
-    if query:
+    if st.button("Submit") or (query and query == st.session_state.query):
+        logger.info(f"Query: {query}")
         try:
             msg = get_response(query_engine, slack_client, query)    
             st.success(msg)
+            logger.info(f"Response: {msg}")
         except Exception as e:
             msg = f"An error occurred: {e}"
             st.error(msg)
+            logger.error(f"Response: {msg}")
+        
+        if st.session_state.query != query:
+            # First time rendering this query/response, record it and ask for survey
+            st.session_state.db_id = record_log(weaviate_client, query, msg)
+            st.session_state.query = query
+            st.session_state.survey_complete = False
 
+    
     def survey_click(survey_response):
+        
         st.session_state.survey = survey_response
         st.session_state.survey_complete = True
-        create_schema(weaviate_client)
-        add_survey(weaviate_client, query, msg, survey_response)
+
+        create_survey_schema(weaviate_client)
+
+        db_id = st.session_state.db_id
+        record_survey(weaviate_client, db_id, survey_response)
         logger.info(f"Logged survey response: {survey_response}")
         del st.session_state['survey']
+
 
     if not st.session_state.survey_complete:
         st.markdown(
@@ -317,7 +322,7 @@ Source data was downloaded on May 19, 2023. If the search proves useful, we can 
             with col1:
                 st.form_submit_button("Yes", on_click=survey_click, args=('Yes', ))
             with col2:
-                st.form_submit_button("No", on_click=survey_click, args=('NO', ))
+                st.form_submit_button("No", on_click=survey_click, args=('No', ))
     
 
 if __name__ == '__main__':
