@@ -39,11 +39,12 @@ def fix_text(text):
 
 class ArchivedSlackLoader():
 
-    def __init__(self, data_path):
+    def __init__(self, data_path, debug=False):
         self.data_path = data_path
         self.id2username = {}
         self.id2realname = {}
         self.channel2id = {}
+        self.debug = debug
 
         for user in self.get_users():
             id = user['id']
@@ -59,6 +60,8 @@ class ArchivedSlackLoader():
 
 
     def get_users(self):
+        """ Generator which returns users from the users.json file.
+        """
         with open(f"{self.data_path}/users.json", 'r') as f:
             users = json.load(f)
             for user in users:
@@ -66,6 +69,8 @@ class ArchivedSlackLoader():
 
 
     def get_channels(self):
+        """ Generator which returns channels from the channels.json file.
+        """
         with open(f"{self.data_path}/channels.json", 'r') as f:
             channels = json.load(f)
             for channel in channels:
@@ -73,6 +78,8 @@ class ArchivedSlackLoader():
 
 
     def get_messages(self, channel_name):
+        """ Generator which returns messages from the json files in the given channel directory.
+        """
         for messages_file in glob.glob(f"{self.data_path}/{channel_name}/*.json"):
             with open(messages_file, 'r') as f:
                 for message in json.load(f):
@@ -228,16 +235,20 @@ def main():
     parser.add_argument('-i', '--input', type=str, required=True, help='Path to extracted Slack export directory')
     parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
     parser.add_argument('-c', '--class-prefix', type=str, default="Slack", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
-    parser.add_argument('-d', '--delete-database', default=False, action=argparse.BooleanOptionalAction, help='Delete existing "<prefix>_Node" class in Weaviate before starting.')
+    parser.add_argument('-r', '--remove-existing', default=False, action=argparse.BooleanOptionalAction, help='Remove existing "<prefix>_Node" class in Weaviate before starting.')
+    parser.add_argument('-d', '--debug', default=False, action=argparse.BooleanOptionalAction, help='Print debugging information, such as the message content.')
     args = parser.parse_args()
 
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
     # Load the Slack archive from disk and process it into documents
-    loader = ArchivedSlackLoader(args.input)
+    loader = ArchivedSlackLoader(args.input, debug=args.debug)
     documents = loader.load_all_documents()
     logger.info(f"Loaded {len(documents)} documents")
 
     # Index the documents in Weaviate
-    indexer = Indexer(args.weaviate_url, args.class_prefix, args.delete_database)
+    indexer = Indexer(args.weaviate_url, args.class_prefix, args.remove_existing)
     indexer.index(documents)
 
 
