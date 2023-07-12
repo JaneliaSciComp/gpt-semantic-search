@@ -88,3 +88,10 @@ Then push:
 
 Once the upload is done, remember to update the version number in `docker-compose.yaml`.
 
+### Update requirements.txt
+
+Run this in the venv:
+
+    pip3 freeze > requirements.txt
+
+
