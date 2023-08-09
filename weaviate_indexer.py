@@ -15,9 +15,9 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
-MAX_INPUT_SIZE = 4096
+CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
-MAX_CHUNK_OVERLAP = 20
+CHUNK_OVERLAP_RATIO = 0.1
 
 # Copied from weaviate_indexer to: 
 # 1) upgrade string->text for proper tokenization
@@ -104,12 +104,12 @@ class Indexer():
             client.schema.delete_class(class_name)
 
             logger.info(f"Creating {class_name} class in Weaviate")
-            from llama_index.readers.weaviate.client import NODE_SCHEMA
+            from llama_index.vector_stores.weaviate_utils import NODE_SCHEMA
             create_schema(client, class_prefix)
 
         # Create LLM embedding model
         embed_model = LangchainEmbedding(OpenAIEmbeddings())
-        prompt_helper = PromptHelper(MAX_INPUT_SIZE, NUM_OUTPUT, MAX_CHUNK_OVERLAP)
+        prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
         service_context = ServiceContext.from_defaults(embed_model=embed_model, prompt_helper=prompt_helper)
 
         # Embed the documents and persist the embeddings into Weaviate    

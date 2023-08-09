@@ -170,7 +170,7 @@ class ArchivedSlackLoader():
         logger.info("--------------------------------------------------")
         logger.info(f"Document[channel={channel_id},ts={ts}]")
         logger.debug(doc_text)
-        return Document(doc_text, extra_info={"source": SOURCE, "channel": channel_id, "ts": ts})
+        return Document(text=doc_text, extra_info={"source": SOURCE, "channel": channel_id, "ts": ts})
 
 
     def load_documents(self, channel_name):

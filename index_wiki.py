@@ -46,7 +46,7 @@ class ArchivedWikiLoader():
     def create_document(self, name, title, link, doc_text):
         logger.info(f"Document[name={name},link={link}]")
         logger.debug(doc_text)
-        return Document(doc_text, doc_id=name, extra_info={"source": SOURCE, "title": title, "link": link})
+        return Document(text=doc_text, doc_id=name, extra_info={"source": SOURCE, "title": title, "link": link})
 
     def load_all_documents(self):
         documents = []
