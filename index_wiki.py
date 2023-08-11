@@ -22,11 +22,13 @@ text_maker = html2text.HTML2Text()
 text_maker.ignore_links = True
 text_maker.ignore_images = True
 
-def wiki_to_text(ancestors, title, labels, body):
+
+def wiki_to_text(ancestors, title, authors, labels, body):
     """ Convert a wiki document to plain text for use as a GPT prompt.
     """
     body_text = text_maker.handle(body)
     text =  f"Title: {title}\n"
+    if authors: text += f"Authors: {authors}\n" 
     if ancestors: text += f"Ancestors: {ancestors}\n" 
     if labels: text += f"Labels: {ancestors}\n"
     text += f"{body_text}"
@@ -52,9 +54,10 @@ class ArchivedWikiLoader():
                     link = f.readline().rstrip()
                     ancestors = f.readline().rstrip()
                     title = f.readline().rstrip()
+                    authors = f.readline().rstrip()
                     labels = f.readline().rstrip()
                     body = re.sub('[\n]+', '\n', "".join(f.readlines()))
-                    text = wiki_to_text(ancestors, title, labels, body)
+                    text = wiki_to_text(ancestors, title, authors, labels, body)
                     doc = self.create_document(name, title, link, text)
                     documents.append(doc)
         return documents
