@@ -21,33 +21,46 @@ CHUNK_OVERLAP_RATIO = 0.1
 
 # Copied from weaviate_indexer to: 
 # 1) upgrade string->text for proper tokenization
-# Maybe more customizations in the future.
+# 2) set tokenization which defaults to whitespace for some reason
+# 3) disable indexes on metadata json
 NODE_SCHEMA: List[Dict] = [
     {
-        "dataType": ["text"],
-        "description": "Text property",
-        "name": "text"
-    },
-    {
-        "dataType": ["text"],
-        "description": "Document id",
-        "name": "doc_id",
-    },
-    {
-        "dataType": ["text"],
-        "description": "The ref_doc_id of the Node",
         "name": "ref_doc_id",
+        "dataType": ["text"],
+        "description": "The ref_doc_id of the Node"
     },
     {
+        "name": "_node_content",
         "dataType": ["text"],
-        "description": "node_info (in JSON)",
-        "name": "node_info",
+        "description": "Node content (in serialized JSON)",
+        "indexFilterable": False,
+        "indexSearchable": False,
+        "tokenization": 'word'
     },
     {
+        "name": "text",
         "dataType": ["text"],
-        "description": "The relationships of the node (in JSON)",
-        "name": "relationships",
+        "description": "Full text of the node",
+        "tokenization": 'word'
     },
+    {
+        "name": "title",
+        "dataType": ["text"],
+        "description": "The title of the document",
+        "tokenization": 'word'
+    },
+    {
+        "name": "link",
+        "dataType": ["text"],
+        "description": "HTTP link to the source document",
+        "tokenization": 'field'
+    },
+    {
+        "name": "source",
+        "dataType": ["text"],
+        "description": "Data source for the source document",
+        "tokenization": 'field'
+    }
 ]
 
 def create_schema(client: Any, class_prefix: str) -> None:
