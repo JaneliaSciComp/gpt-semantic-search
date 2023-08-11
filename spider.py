@@ -38,7 +38,13 @@ class MySpider(CrawlSpider):
 
     def get_path(self, url):
         path = url.replace(URL_PREFIX, '')
+
+        if not path.startswith("/"):
+            if DEBUG: print(f"Skipping external link: {url}")
+            return None
+
         path = path.split("#")[0]
+        # TODO: add support for query parameters
         path = path.split("?")[0]
 
         if "/search" in path or "/node" in path:
@@ -61,12 +67,14 @@ class MySpider(CrawlSpider):
         if not path: return
 
         headers = response.headers.to_unicode_dict()
+
+        # TODO: add support for non-HTML content
         content_type = str(headers['Content-Type'])
         if not content_type.startswith('text/html'):
             print(f"Content type {content_type} is not HTML: {url}")
             return
 
-        # Recurse into other links
+        # Recurse into all links on the page
         item = Item()
         sel = Selector(response)
         item_urls = sel.xpath(""".//*/a/@href""").getall()
@@ -77,23 +85,27 @@ class MySpider(CrawlSpider):
                     yield Request(abs_url, callback=self.parse_item)
 
         # Extract content
-        body = response.selector.css(".content-section").get()
-        if not body:
-            print(f"No content found: {url}")
-        else:
-            soup = bs.BeautifulSoup(body,'lxml')
-            # certain classes contain metadata that is hidden
-            # on janelia.org, this eliminates them from the output text
-            for css_class in IGNORED_CLASSES:
-                for div in soup.find_all("div", {'class':css_class}):
-                    div.decompose()
-            text = h.handle(str(soup))
+        content = response.text#body.decode(response.encoding)
+        
+        if False:
+            body = response.selector.css(".content-section").get()
+            if not body:
+                print(f"No content found: {url}")
+            else:
+                soup = bs.BeautifulSoup(body,'lxml')
+                # certain classes contain metadata that is hidden
+                # on janelia.org, this eliminates them from the output text
+                for css_class in IGNORED_CLASSES:
+                    for div in soup.find_all("div", {'class':css_class}):
+                        div.decompose()
+                content = h.handle(str(soup))
 
-            # Save to file
-            filename = OUTPUT_PATH + path
-            with Path(filename) as p:
-                p.mkdir(parents=True, exist_ok=True)
-                c = p / "content"
-                c.write_text(text)
-                print(f"Saved {path}")
+        # Save to file
+        filename = OUTPUT_PATH + path
+        with Path(filename) as p:
+            p.mkdir(parents=True, exist_ok=True)
+            c = p / "content"
+            # TODO; store metadata like url in a separate YAML file
+            c.write_text(url + "\n" + content)
+            print(f"Saved {path}")
 

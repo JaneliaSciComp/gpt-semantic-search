@@ -12,7 +12,6 @@ This service requires [Docker](https://docs.docker.com/get-docker/) to be instal
 
 This will start both the Weaviate vector database, and the Streamlit webapp. You can then access the webapp at [http://localhost:8501]().
 
-
 ## Development
 
 ### Install dependencies
@@ -44,9 +43,13 @@ For running the Wiki download, you must have a `CONFLUENCE_TOKEN` in your enviro
 If you are at Janelia you can experiment easily by copying the data sources from shared storage on NRS:
 
     mkdir ./data
-    copy -R /nrs/scicompsoft/rokicki/semantic-search/wiki ./data
+    copy -R /nrs/scicompsoft/rokicki/semantic-search/data ./data
 
-If you want to download the latest data, you can use the [DownloadConfluence.ipynb](notebooks/DownloadConfluence.ipynb) notebook to download the wiki for yourself. You can export data from Slack using their [export tool](https://slack.com/help/articles/201658943-Export-your-workspace-data).
+If you want to download the latest data:
+
+1. Confluence Wiki - use the [DownloadConfluence.ipynb](notebooks/DownloadConfluence.ipynb) notebook to download the wiki content
+2. Slack - export data from Slack using their [export tool](https://slack.com/help/articles/201658943-Export-your-workspace-data).
+3. Janelia.org - run the web crawling spider with `scrapy runspider spider.py`
 
 ### Run indexing
 
@@ -93,5 +96,3 @@ Once the upload is done, remember to update the version number in `docker-compos
 Run this in the venv:
 
     pip3 freeze > requirements.txt
-
-
