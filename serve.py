@@ -36,7 +36,7 @@ logger.setLevel(logging.DEBUG)
 llama_logger = LlamaLogger()
 
 # Constants
-TOP_N = 3
+TOP_N = 5
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
@@ -181,7 +181,7 @@ def get_query_engine(_weaviate_client, model, class_prefix):
         index,
         similarity_top_k=TOP_N,
         vector_store_query_mode=VectorStoreQueryMode.HYBRID,
-        alpha=0.75,
+        alpha=0.50,
     )
 
     # construct query engine
@@ -192,7 +192,7 @@ def get_query_engine(_weaviate_client, model, class_prefix):
     return query_engine
 
 
-@st.cache_data
+
 def get_response(_query_engine, _slack_client, query):
 
     # Escape certain characters which the 
@@ -222,6 +222,11 @@ def get_response(_query_engine, _slack_client, query):
             msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
     
     return msg
+
+
+@st.cache_data
+def get_cached_response(_query_engine, _slack_client, query):
+    return get_response(_query_engine, _slack_client, query)
 
 
 def main():
@@ -275,13 +280,13 @@ def main():
     if st.button("Submit") or (query and query == st.session_state.query):
         logger.info(f"Query: {query}")
         try:
-            msg = get_response(query_engine, slack_client, query)    
+            msg = get_response(query_engine, slack_client, query)  
+            logger.info(f"Response: {msg}")  
             st.success(msg)
-            logger.info(f"Response: {msg}")
         except Exception as e:
             msg = f"An error occurred: {e}"
+            logger.exception(msg)
             st.error(msg)
-            logger.error(f"Response: {msg}")
         
         if st.session_state.query != query:
             # First time rendering this query/response, record it and ask for survey
@@ -314,7 +319,6 @@ def main():
             </style>
             """,unsafe_allow_html=True
         )
-
 
         with st.form("survey_form"):
             st.markdown("Was your question answered?")
