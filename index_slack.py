@@ -17,7 +17,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
-SOURCE = "slack"
+SOURCE = "Slack"
 DOCUMENT_PAUSE_SECS = 300
 IGNORED_SUBTYPES = set(['channel_join','channel_leave','bot_message'])
 

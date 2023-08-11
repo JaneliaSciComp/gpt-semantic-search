@@ -214,13 +214,12 @@ def get_response(_query_engine, _slack_client, query):
         
         source = extra_info['source']
 
-        if source == 'slack':
+        if source.lower() == 'slack':
             channel_id = extra_info['channel']
             ts = extra_info['ts']
-            msg += f"* Slack: [{text}]({get_message_link(_slack_client, channel_id, ts)})\n"
-
-        elif source == 'wiki':
-            msg += f"* Wiki: [{extra_info['title']}]({extra_info['link']})\n"
+            msg += f"* {source}: [{text}]({get_message_link(_slack_client, channel_id, ts)})\n"
+        else:
+            msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
     
     return msg
 

@@ -16,12 +16,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
-SOURCE = "wiki"
-DOCUMENT_PAUSE_SECS = 300
-MAX_INPUT_SIZE = 4096
-NUM_OUTPUT = 256
-MAX_CHUNK_OVERLAP = 20
-
+SOURCE = "Wiki"
 
 text_maker = html2text.HTML2Text()
 text_maker.ignore_links = True
