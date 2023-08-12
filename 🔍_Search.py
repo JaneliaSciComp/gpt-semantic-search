@@ -23,6 +23,10 @@ import weaviate
 import streamlit as st
 from slack_sdk import WebClient
 
+st.set_page_config(page_title="JaneliaGPT", page_icon="⚙️")
+
+from state import persist, init_state
+init_state()
 
 warnings.simplefilter("ignore", ResourceWarning)
 
@@ -36,29 +40,17 @@ logger.setLevel(logging.DEBUG)
 llama_logger = LlamaLogger()
 
 # Constants
-TOP_N = 5
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
 SURVEY_CLASS = "SurveyResponses"
 
-FAQ = f"""
-# FAQ
-
-## How does JaneliaGPT work?
-Content from the Janelia-Software Slack and Janelia Wiki are translated into semantic vectors using OpenAI's embedding API 
-and stored in a vector database. Your query is embedded as well and used to search the database for content that is 
-semantically related to your query. The GPT language model tries to answer your question using the top {TOP_N} results.
-
-## Why is the answer unrelated to my question?
-At the moment this is just a proof of concept. It works brilliantly for some questions and fails spectacularly for others.
-Please use the survey buttons to record your experience so that we can use the results to improve the search results in future iterations. 
-
-## Why can't I find something that was posted recently?
-Source data was downloaded on May 19, 2023. If the search proves useful, we can implement automated downloading and incremental indexing. 
-
-## Where is the source code?
-[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)
+SIDEBAR_DESC = """
+JaneliaGPT uses OpenAI models to index various data sources in a vector database for searching. 
+Currently the following sources are indexed:
+* Janelia.org
+* Janelia-Software Slack Workspace
+* Janelia Wiki (partly)
 """
 
 NODE_SCHEMA: List[Dict] = [
@@ -164,10 +156,15 @@ def get_slack_client():
 
 
 @st.cache_resource
-def get_query_engine(_weaviate_client, model, class_prefix):
+def get_query_engine(_weaviate_client):
 
-    # Based on experimentation, gpt-3.5-turbo does not do well with Slack documents, using text-curie-001 for now. 
-    llm = OpenAI(model=model, temperature=0.1)
+    model = st.session_state["model"]
+    class_prefix = st.session_state["class_prefix"]
+    temperature = st.session_state["temperature"] / 100.0
+    search_alpha = st.session_state["search_alpha"] / 100.0
+    num_results = st.session_state["num_results"]
+
+    llm = OpenAI(model=model, temperature=temperature)
     llm_predictor = LLMPredictor(llm=llm)
     embed_model = LangchainEmbedding(OpenAIEmbeddings())
     prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
@@ -179,9 +176,9 @@ def get_query_engine(_weaviate_client, model, class_prefix):
     # configure retriever
     retriever = VectorIndexRetriever(
         index,
-        similarity_top_k=TOP_N,
+        similarity_top_k=num_results,
         vector_store_query_mode=VectorStoreQueryMode.HYBRID,
-        alpha=0.50,
+        alpha=search_alpha,
     )
 
     # construct query engine
@@ -190,7 +187,6 @@ def get_query_engine(_weaviate_client, model, class_prefix):
     )
 
     return query_engine
-
 
 
 def get_response(_query_engine, _slack_client, query):
@@ -229,105 +225,97 @@ def get_cached_response(_query_engine, _slack_client, query):
     return get_response(_query_engine, _slack_client, query)
 
 
-def main():
-    
-    parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
-    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
-    parser.add_argument('-c', '--class-prefix', type=str, default="Janelia", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
-    parser.add_argument('-m', '--model', type=str, default="gpt-4", help='OpenAI model to use for query completion.')
-    args = parser.parse_args()
 
-    st.markdown("""
+parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
+parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
+args = parser.parse_args()
+        
+st.sidebar.markdown(SIDEBAR_DESC)
+
+# st.markdown("""
+#     <style>
+#     #MainMenu {visibility: hidden;}
+#     footer {visibility: hidden;}
+#     .appview-container .main .block-container {
+#         padding-top: 1em;
+#     }
+#     div.css-1544g2n {
+#         padding-top: 1em;
+#     }
+#     [data-testid="stSidebar"] {
+#         font-size: 0.8em;
+#     }
+#     [data-testid="stSidebar"] h1 {
+#         font-size: 1.5em;
+#     }
+#     [data-testid="stSidebar"] h2 {
+#         font-size: 1.25em;
+#     }
+#     [data-testid="stSidebar"] p {
+#         font-size: 1em;
+#     }
+#     </style>
+# """, unsafe_allow_html=True)
+
+if 'survey_complete' not in st.session_state:
+    st.session_state.survey_complete = True
+
+if 'query' not in st.session_state:
+    st.session_state.query = ""
+    
+weaviate_client = get_weaviate_client(args.weaviate_url)
+query_engine = get_query_engine(weaviate_client)
+slack_client = get_slack_client()
+
+st.title("Ask JaneliaGPT")
+query = st.text_input("What would you like to ask?", '')
+if st.button("Submit") or (query and query == st.session_state.query):
+    logger.info(f"Query: {query}")
+    try:
+        msg = get_response(query_engine, slack_client, query)  
+        logger.info(f"Response: {msg}")  
+        st.success(msg)
+    except Exception as e:
+        msg = f"An error occurred: {e}"
+        logger.exception(msg)
+        st.error(msg)
+    
+    if st.session_state.query != query:
+        # First time rendering this query/response, record it and ask for survey
+        st.session_state.db_id = record_log(weaviate_client, query, msg)
+        st.session_state.query = query
+        st.session_state.survey_complete = False
+
+
+def survey_click(survey_response):
+    
+    st.session_state.survey = survey_response
+    st.session_state.survey_complete = True
+
+    create_survey_schema(weaviate_client)
+
+    db_id = st.session_state.db_id
+    record_survey(weaviate_client, db_id, survey_response)
+    logger.info(f"Logged survey response: {survey_response}")
+    del st.session_state['survey']
+
+
+if not st.session_state.survey_complete:
+    st.markdown(
+        """
         <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        .appview-container .main .block-container {
-            padding-top: 1em;
-        }
-        div.css-1544g2n {
-            padding-top: 1em;
-        }
-        [data-testid="stSidebar"] {
-            font-size: 0.8em;
-        }
-        [data-testid="stSidebar"] h1 {
-            font-size: 1.5em;
-        }
-        [data-testid="stSidebar"] h2 {
-            font-size: 1.25em;
-        }
-        [data-testid="stSidebar"] p {
-            font-size: 1em;
-        }
+            div[data-testid="column"]:nth-of-type(1)
+            {
+                text-align: end;
+            } 
         </style>
-    """, unsafe_allow_html=True)
+        """,unsafe_allow_html=True
+    )
 
-    with st.sidebar:
-        st.markdown(FAQ)
-
-    if 'survey_complete' not in st.session_state:
-        st.session_state.survey_complete = True
-
-    if 'query' not in st.session_state:
-        st.session_state.query = ""
-        
-    weaviate_client = get_weaviate_client(args.weaviate_url)
-    query_engine = get_query_engine(weaviate_client, args.model, args.class_prefix)
-    slack_client = get_slack_client()
-    
-    st.title("Ask JaneliaGPT")
-    query = st.text_input("What would you like to ask?", '')
-    if st.button("Submit") or (query and query == st.session_state.query):
-        logger.info(f"Query: {query}")
-        try:
-            msg = get_response(query_engine, slack_client, query)  
-            logger.info(f"Response: {msg}")  
-            st.success(msg)
-        except Exception as e:
-            msg = f"An error occurred: {e}"
-            logger.exception(msg)
-            st.error(msg)
-        
-        if st.session_state.query != query:
-            # First time rendering this query/response, record it and ask for survey
-            st.session_state.db_id = record_log(weaviate_client, query, msg)
-            st.session_state.query = query
-            st.session_state.survey_complete = False
-
-    
-    def survey_click(survey_response):
-        
-        st.session_state.survey = survey_response
-        st.session_state.survey_complete = True
-
-        create_survey_schema(weaviate_client)
-
-        db_id = st.session_state.db_id
-        record_survey(weaviate_client, db_id, survey_response)
-        logger.info(f"Logged survey response: {survey_response}")
-        del st.session_state['survey']
-
-
-    if not st.session_state.survey_complete:
-        st.markdown(
-            """
-            <style>
-                div[data-testid="column"]:nth-of-type(1)
-                {
-                    text-align: end;
-                } 
-            </style>
-            """,unsafe_allow_html=True
-        )
-
-        with st.form("survey_form"):
-            st.markdown("Was your question answered?")
-            col1, col2 = st.columns([1,1])
-            with col1:
-                st.form_submit_button("Yes", on_click=survey_click, args=('Yes', ))
-            with col2:
-                st.form_submit_button("No", on_click=survey_click, args=('No', ))
-    
-
-if __name__ == '__main__':
-    main()
+    with st.form(key="survey_form"):
+        st.markdown("Was your question answered?")
+        col1, col2 = st.columns([1,1])
+        with col1:
+            st.form_submit_button("Yes", on_click=survey_click, args=('Yes', ))
+        with col2:
+            st.form_submit_button("No", on_click=survey_click, args=('No', ))
