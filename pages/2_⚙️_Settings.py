@@ -2,7 +2,7 @@ import streamlit as st
 
 st.set_page_config(page_title="JaneliaGPT - Settings", page_icon="⚙️")
 
-from state import init_state, persist
+from state import init_state
 init_state()
 
 PARAM_EXPLANATION = """
@@ -15,18 +15,14 @@ the latency of the search.
 
 st.markdown("# JaneliaGPT Settings")
 
-st.selectbox("Model", st.session_state["model_options"], key=persist("model"))
+st.selectbox("Model", st.session_state["model_options"], key="model")
 
 col1, col2 = st.columns([1,1])
 with col1:
-    st.slider("Search Alpha", 0, 100, key=persist("search_alpha"))
-    st.slider("Num Results", 0, 10, key=persist("num_results"))
-    st.slider("Temperature", 0, 100, key=persist("temperature"))
+    st.slider("Search Alpha", 0, 100, key="search_alpha")
+    st.slider("Num Results", 0, 10, key="num_results")
+    st.slider("Temperature", 0, 100, key="temperature")
 with col2:
     st.markdown(PARAM_EXPLANATION)
     
-st.text_input("Weaviate Class Prefix", key=persist("class_prefix"))
-
-# st.checkbox("Checkbox", key=persist("checkbox"))
-# st.radio("Radio", st.session_state["options"], key=persist("radio"))
-# st.multiselect("Multiselect", st.session_state["options"], key=persist("multiselect"))
+st.text_input("Weaviate Class Prefix", key="class_prefix")

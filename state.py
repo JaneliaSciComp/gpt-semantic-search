@@ -5,17 +5,7 @@
 #
 import streamlit as st
 
-_PERSIST_STATE_KEY = f"{__name__}_PERSIST"
-
-
-def persist(key: str) -> str:
-    """Mark widget state as persistent."""
-    if _PERSIST_STATE_KEY not in st.session_state:
-        st.session_state[_PERSIST_STATE_KEY] = set()
-
-    st.session_state[_PERSIST_STATE_KEY].add(key)
-
-    return key
+PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query"]
 
 
 @st.cache_resource
@@ -33,19 +23,20 @@ def init_state():
     """
     # this is the magic that copies certain widget states into the 
     # user session state for persistance across page changes
-    if _PERSIST_STATE_KEY in st.session_state:
-        st.session_state.update({
-            key: value
-            for key, value in st.session_state.items()
-            if key in st.session_state[_PERSIST_STATE_KEY]
-        })
+    st.session_state.update({
+        key: value
+        for key, value in st.session_state.items()
+        if key in PERSIST_KEYS
+    })
     # initial state values
     if "model" not in st.session_state:
         st.session_state.update({
             "model_options": get_models(),
             "model": "gpt-4",
-            "temperature": 0,
+            "search_alpha": 55,
             "num_results": 3,
+            "temperature": 0,
             "class_prefix": "Janelia",
-            "search_alpha": 55
+            "response": None
         })
+        #print("initialized session state: ",st.session_state)

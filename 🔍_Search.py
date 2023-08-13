@@ -25,7 +25,7 @@ from slack_sdk import WebClient
 
 st.set_page_config(page_title="JaneliaGPT", page_icon="⚙️")
 
-from state import persist, init_state
+from state import init_state
 init_state()
 
 warnings.simplefilter("ignore", ResourceWarning)
@@ -155,7 +155,6 @@ def get_slack_client():
     return slack_client
 
 
-@st.cache_resource
 def get_query_engine(_weaviate_client):
 
     model = st.session_state["model"]
@@ -163,6 +162,13 @@ def get_query_engine(_weaviate_client):
     temperature = st.session_state["temperature"] / 100.0
     search_alpha = st.session_state["search_alpha"] / 100.0
     num_results = st.session_state["num_results"]
+
+    logger.info("Getting query engine with parameters:")
+    logger.info(f"  model: {model}")
+    logger.info(f"  class_prefix: {class_prefix}")
+    logger.info(f"  temperature: {temperature}")
+    logger.info(f"  search_alpha: {search_alpha}")
+    logger.info(f"  num_results: {num_results}")
 
     llm = OpenAI(model=model, temperature=temperature)
     llm_predictor = LLMPredictor(llm=llm)
@@ -225,7 +231,6 @@ def get_cached_response(_query_engine, _slack_client, query):
     return get_response(_query_engine, _slack_client, query)
 
 
-
 parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
 parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
 args = parser.parse_args()
@@ -264,27 +269,34 @@ if 'query' not in st.session_state:
     st.session_state.query = ""
     
 weaviate_client = get_weaviate_client(args.weaviate_url)
-query_engine = get_query_engine(weaviate_client)
-slack_client = get_slack_client()
 
 st.title("Ask JaneliaGPT")
-query = st.text_input("What would you like to ask?", '')
-if st.button("Submit") or (query and query == st.session_state.query):
+query = st.text_input("What would you like to ask?", '', key="query")
+if st.button("Submit"):
     logger.info(f"Query: {query}")
     try:
+        query_engine = get_query_engine(weaviate_client)
+        slack_client = get_slack_client()
         msg = get_response(query_engine, slack_client, query)  
-        logger.info(f"Response: {msg}")  
+        st.session_state.db_id = record_log(weaviate_client, query, msg)
+        st.session_state.survey_complete = False
+        st.session_state.response = msg
+        st.session_state.response_error = False
+        logger.info(f"Response saved as {st.session_state.db_id}: {msg}")
         st.success(msg)
     except Exception as e:
         msg = f"An error occurred: {e}"
+        st.session_state.response = msg
+        st.session_state.response_error = True
         logger.exception(msg)
         st.error(msg)
-    
-    if st.session_state.query != query:
-        # First time rendering this query/response, record it and ask for survey
-        st.session_state.db_id = record_log(weaviate_client, query, msg)
-        st.session_state.query = query
-        st.session_state.survey_complete = False
+
+elif st.session_state.response:
+    # Re-render the saved response
+    if st.session_state.response_error:
+        st.error(st.session_state.response)
+    else:
+        st.success(st.session_state.response)
 
 
 def survey_click(survey_response):
@@ -300,7 +312,7 @@ def survey_click(survey_response):
     del st.session_state['survey']
 
 
-if not st.session_state.survey_complete:
+if st.session_state.response and not st.session_state.survey_complete:
     st.markdown(
         """
         <style>
