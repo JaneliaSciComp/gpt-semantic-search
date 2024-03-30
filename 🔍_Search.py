@@ -9,15 +9,15 @@ import logging
 import warnings
 from typing import Any, Dict, List
 
-from langchain.embeddings import OpenAIEmbeddings
-from llama_index import LLMPredictor, PromptHelper, ServiceContext, LangchainEmbedding, GPTVectorStoreIndex, get_response_synthesizer
-from llama_index.llms import OpenAI
-from llama_index.storage.storage_context import StorageContext
-from llama_index.retrievers import VectorIndexRetriever
-from llama_index.query_engine import RetrieverQueryEngine
-from llama_index.vector_stores import WeaviateVectorStore
-from llama_index.vector_stores.types import VectorStoreQueryMode
-from llama_index.logger import LlamaLogger
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.legacy import LLMPredictor, PromptHelper, ServiceContext, GPTVectorStoreIndex, get_response_synthesizer
+from llama_index.legacy.llms import OpenAI
+from llama_index.legacy.storage.storage_context import StorageContext
+from llama_index.legacy.retrievers import VectorIndexRetriever
+from llama_index.legacy.query_engine import RetrieverQueryEngine
+from llama_index.legacy.vector_stores import WeaviateVectorStore
+from llama_index.legacy.vector_stores.types import VectorStoreQueryMode
+from llama_index.legacy.logger import LlamaLogger
 
 import weaviate
 import streamlit as st
@@ -172,7 +172,7 @@ def get_query_engine(_weaviate_client):
 
     llm = OpenAI(model=model, temperature=temperature)
     llm_predictor = LLMPredictor(llm=llm)
-    embed_model = LangchainEmbedding(OpenAIEmbeddings())
+    embed_model = OpenAIEmbedding(model="text-embedding-3-large")
     prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
     service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embed_model, prompt_helper=prompt_helper, llama_logger=llama_logger)
     vector_store = WeaviateVectorStore(weaviate_client=_weaviate_client, class_prefix=class_prefix)

@@ -61,6 +61,10 @@ Add a wiki export:
 
     ./index_wiki.py -i ./data/wiki -c Janelia
 
+Add the janelia.org web site:
+
+    ./index_web.py -i ./data/janelia.org -c Janelia
+
 ### Start semantic search webapp
 
     streamlit run ./serve.py

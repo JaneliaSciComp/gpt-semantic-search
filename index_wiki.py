@@ -8,7 +8,7 @@ import logging
 import warnings
 
 import html2text
-from llama_index import Document
+from llama_index.legacy import Document
 from weaviate_indexer import Indexer
 
 warnings.simplefilter("ignore", ResourceWarning)

@@ -3,10 +3,10 @@ import logging
 import warnings
 from typing import Any, Dict, List
 
-from langchain.embeddings import OpenAIEmbeddings
-from llama_index import PromptHelper, ServiceContext, LangchainEmbedding, GPTVectorStoreIndex
-from llama_index.vector_stores import WeaviateVectorStore
-from llama_index.storage.storage_context import StorageContext
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.legacy import PromptHelper, ServiceContext, GPTVectorStoreIndex
+from llama_index.legacy.vector_stores import WeaviateVectorStore
+from llama_index.legacy.storage.storage_context import StorageContext
 
 import weaviate
 
@@ -120,8 +120,8 @@ class Indexer():
             from llama_index.vector_stores.weaviate_utils import NODE_SCHEMA
             create_schema(client, class_prefix)
 
-        # Create LLM embedding model
-        embed_model = LangchainEmbedding(OpenAIEmbeddings())
+        # Create LLM embedding model    
+        embed_model = OpenAIEmbedding(embed_batch_size=20, model="text-embedding-3-large")
         prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
         service_context = ServiceContext.from_defaults(embed_model=embed_model, prompt_helper=prompt_helper)
 
