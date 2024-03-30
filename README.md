@@ -18,9 +18,9 @@ This will start both the Weaviate vector database, and the Streamlit webapp. You
 
 Create a virtualenv and install the dependencies:
 
-    $ virtualenv <env_name>
-    $ source <env_name>/bin/activate
-    (<env_name>)$ pip install -r path/to/requirements.txt
+    virtualenv env
+    source env/bin/activate
+    pip install -r requirements.txt
 
 ### Launch Weaviate database
 
