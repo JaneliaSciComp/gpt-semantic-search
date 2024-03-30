@@ -67,11 +67,7 @@ Add the janelia.org web site:
 
 ### Start semantic search webapp
 
-    streamlit run ./serve.py
-
-If you want to pass arguments, such as a different class prefix, use two dashes:
-
-    streamlit run ./serve.py -- -c MyPrefix
+    streamlit run 1_🔍_Search.py
 
 ## Development Notes
 

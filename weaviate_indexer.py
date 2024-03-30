@@ -117,7 +117,6 @@ class Indexer():
             client.schema.delete_class(class_name)
 
             logger.info(f"Creating {class_name} class in Weaviate")
-            from llama_index.vector_stores.weaviate_utils import NODE_SCHEMA
             create_schema(client, class_prefix)
 
         # Create LLM embedding model    

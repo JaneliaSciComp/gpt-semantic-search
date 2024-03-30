@@ -237,31 +237,6 @@ args = parser.parse_args()
         
 st.sidebar.markdown(SIDEBAR_DESC)
 
-# st.markdown("""
-#     <style>
-#     #MainMenu {visibility: hidden;}
-#     footer {visibility: hidden;}
-#     .appview-container .main .block-container {
-#         padding-top: 1em;
-#     }
-#     div.css-1544g2n {
-#         padding-top: 1em;
-#     }
-#     [data-testid="stSidebar"] {
-#         font-size: 0.8em;
-#     }
-#     [data-testid="stSidebar"] h1 {
-#         font-size: 1.5em;
-#     }
-#     [data-testid="stSidebar"] h2 {
-#         font-size: 1.25em;
-#     }
-#     [data-testid="stSidebar"] p {
-#         font-size: 1em;
-#     }
-#     </style>
-# """, unsafe_allow_html=True)
-
 if 'survey_complete' not in st.session_state:
     st.session_state.survey_complete = True
 
