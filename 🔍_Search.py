@@ -23,7 +23,7 @@ import weaviate
 import streamlit as st
 from slack_sdk import WebClient
 
-st.set_page_config(page_title="JaneliaGPT", page_icon="⚙️")
+st.set_page_config(page_title="JaneliaGPT", page_icon="🔍")
 
 from state import init_state
 init_state()
