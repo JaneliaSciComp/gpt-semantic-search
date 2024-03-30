@@ -4,5 +4,8 @@ scrapy==2.11.1
 beautifulsoup4==4.12.3
 html2text==2024.2.26
 llama-index==0.10.25
+llama-index-llms-openai
+llama-index-vector-stores-weaviate
+llama-index-embeddings-openai
 slack-sdk==3.27.1
 watchdog==4.0.0

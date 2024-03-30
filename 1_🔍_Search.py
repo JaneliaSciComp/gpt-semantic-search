@@ -7,17 +7,17 @@ import argparse
 import textwrap
 import logging
 import warnings
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.legacy import LLMPredictor, PromptHelper, ServiceContext, GPTVectorStoreIndex, get_response_synthesizer
-from llama_index.legacy.llms import OpenAI
-from llama_index.legacy.storage.storage_context import StorageContext
-from llama_index.legacy.retrievers import VectorIndexRetriever
-from llama_index.legacy.query_engine import RetrieverQueryEngine
-from llama_index.legacy.vector_stores import WeaviateVectorStore
-from llama_index.legacy.vector_stores.types import VectorStoreQueryMode
-from llama_index.legacy.logger import LlamaLogger
+from llama_index.core import Settings
+from llama_index.core import PromptHelper, GPTVectorStoreIndex
+from llama_index.llms.openai import OpenAI
+from llama_index.core import StorageContext
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.vector_stores.weaviate import WeaviateVectorStore
+from llama_index.core.vector_stores.types import VectorStoreQueryMode
 
 import weaviate
 import streamlit as st
@@ -36,8 +36,6 @@ logging.getLogger('openai').setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-llama_logger = LlamaLogger()
 
 # Constants
 CONTEXT_WINDOW = 4096
@@ -171,13 +169,17 @@ def get_query_engine(_weaviate_client):
     logger.info(f"  num_results: {num_results}")
 
     llm = OpenAI(model=model, temperature=temperature)
-    llm_predictor = LLMPredictor(llm=llm)
     embed_model = OpenAIEmbedding(model="text-embedding-3-large")
     prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
-    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, embed_model=embed_model, prompt_helper=prompt_helper, llama_logger=llama_logger)
+
+    Settings.llm = llm
+    Settings.embed_model = embed_model
+    Settings.chunk_size = 512
+    Settings.prompt_helper = prompt_helper
+
     vector_store = WeaviateVectorStore(weaviate_client=_weaviate_client, class_prefix=class_prefix)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    index = GPTVectorStoreIndex([], storage_context=storage_context, service_context=service_context)
+    index = GPTVectorStoreIndex([], storage_context=storage_context)
 
     # configure retriever
     retriever = VectorIndexRetriever(
@@ -188,9 +190,7 @@ def get_query_engine(_weaviate_client):
     )
 
     # construct query engine
-    query_engine = RetrieverQueryEngine.from_args(
-        retriever, service_context=service_context
-    )
+    query_engine = RetrieverQueryEngine.from_args(retriever)
 
     return query_engine
 
@@ -201,9 +201,6 @@ def get_response(_query_engine, _slack_client, query):
     query = re.sub("\"", "", query)
 
     response = _query_engine.query(query)
-
-    print(llama_logger.get_logs())
-    llama_logger.reset() 
 
     msg = f"{response.response}\n\nSources:\n\n"
     for node in get_unique_nodes(response.source_nodes):

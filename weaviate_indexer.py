@@ -4,9 +4,9 @@ import warnings
 from typing import Any, Dict, List
 
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.legacy import PromptHelper, ServiceContext, GPTVectorStoreIndex
-from llama_index.legacy.vector_stores import WeaviateVectorStore
-from llama_index.legacy.storage.storage_context import StorageContext
+from llama_index.core import PromptHelper, ServiceContext, GPTVectorStoreIndex
+from llama_index.vector_stores.weaviate import WeaviateVectorStore
+from llama_index.core import StorageContext
 
 import weaviate
 
