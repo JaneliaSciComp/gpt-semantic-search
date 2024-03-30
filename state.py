@@ -1,19 +1,16 @@
-#
-# Copied cross-page persistance support from https://gist.github.com/okld/0aba4869ba6fdc8d49132e6974e2e662
-#
-# Tried using https://gist.github.com/okld/8ca97ba892a7c20298fd099b196a8b4d as well, but ran into a lot of issues.
-#
 import streamlit as st
 
 PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query"]
-
+DEFAULT_CLASS_PREFIX = "Janelia"
 
 @st.cache_resource
 def get_models():
     """ Returns a list of available GPT models.
     """
-    import openai
-    model_res = openai.Model.list()
+    from openai import OpenAI
+    
+    client = OpenAI()
+    model_res = client.models.list()
     models = [model.id for model in model_res.data]
     return sorted(models)
 
@@ -36,7 +33,7 @@ def init_state():
             "search_alpha": 55,
             "num_results": 3,
             "temperature": 0,
-            "class_prefix": "Janelia",
+            "class_prefix": DEFAULT_CLASS_PREFIX,
             "response": None
         })
         #print("initialized session state: ",st.session_state)

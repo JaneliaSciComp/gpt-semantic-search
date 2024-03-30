@@ -5,3 +5,4 @@ beautifulsoup4==4.12.3
 html2text==2024.2.26
 llama-index==0.10.25
 slack-sdk==3.27.1
+watchdog==4.0.0
