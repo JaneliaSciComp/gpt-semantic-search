@@ -4,7 +4,7 @@ services:
   weaviate:
     image: semitechnologies/weaviate:1.24.4
     ports:
-    - 8077:8080
+    - 8777:8080
     restart: on-failure:0
     volumes:
       - ${WEAVIATE_STORAGE_PATH:-./storage/weaviate}:/var/lib/weaviate
@@ -16,14 +16,14 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
 
   semantic-search:
-    image: registry.int.janelia.org/scsw/semantic-search:1.0.4
+    image: ghcr.io/janeliascicomp/gpt-semantic-search:latest
     ports:
     - 8501:8501
     restart: on-failure:0
     environment:
       STREAMLIT_SERVER_FILE_WATCHER_TYPE: 'none'
       STREAMLIT_SERVER_HEADLESS: 'true'
-      WEAVIATE_URL: 'http://weaviate:8077'
+      WEAVIATE_URL: 'http://weaviate:8080'
       OPENAI_API_KEY:
       SLACK_TOKEN:
 

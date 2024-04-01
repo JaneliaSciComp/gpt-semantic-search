@@ -79,13 +79,13 @@ And then select the env as the Python Interpreter for the notebook.
 
 ### Rebuild container
 
-Build from this directory (setting a version number instead of latest):
+Build from this directory (setting a version number instead of "latest"):
 
-    docker build . -t registry.int.janelia.org/scsw/semantic-search:latest
+    docker build . -t ghcr.io/janeliascicomp/gpt-semantic-search:latest
 
 Then push:
 
-    docker push registry.int.janelia.org/scsw/semantic-search:latest
+    docker push ghcr.io/janeliascicomp/gpt-semantic-search:latest
 
 Once the upload is done, remember to update the version number in `docker-compose.yaml`.
 
