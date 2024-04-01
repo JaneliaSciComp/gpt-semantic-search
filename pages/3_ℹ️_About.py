@@ -21,7 +21,7 @@ At the moment this is just a proof of concept. It works brilliantly for some que
 Please use the survey buttons to record your experience so that we can use the results to improve the search results in future iterations. 
 
 ## Why can't I find something that was posted recently?
-Source data was downloaded on August 10, 2023. If the search proves useful, we can implement automated downloading and incremental indexing. 
+Source data was downloaded on April 1, 2024. If the search proves useful, we can implement automated downloading and incremental indexing. 
 
 ## Where is the source code?
 [![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)
