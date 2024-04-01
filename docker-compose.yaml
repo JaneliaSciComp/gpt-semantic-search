@@ -5,7 +5,7 @@ services:
     image: semitechnologies/weaviate:1.24.4
     ports:
     - 8777:8080
-    restart: on-failure:0
+    restart: unless-stopped
     volumes:
       - ${WEAVIATE_STORAGE_PATH:-./storage/weaviate}:/var/lib/weaviate
     environment:
@@ -19,7 +19,7 @@ services:
     image: ghcr.io/janeliascicomp/gpt-semantic-search:latest
     ports:
     - 8501:8501
-    restart: on-failure:0
+    restart: unless-stopped
     environment:
       STREAMLIT_SERVER_FILE_WATCHER_TYPE: 'none'
       STREAMLIT_SERVER_HEADLESS: 'true'
