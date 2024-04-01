@@ -41,7 +41,7 @@ For running the Wiki download, you must have a `CONFLUENCE_TOKEN` in your enviro
 If you are at Janelia you can experiment easily by copying the data sources from shared storage on NRS:
 
     mkdir ./data
-    copy -R /nrs/scicompsoft/rokicki/semantic-search/data ./data
+    cp -R /nrs/scicompsoft/rokicki/semantic-search/data ./data
 
 If you want to download the latest data:
 

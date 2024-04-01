@@ -233,7 +233,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='Load the given Slack export into Weaviate')
     parser.add_argument('-i', '--input', type=str, required=True, help='Path to extracted Slack export directory')
-    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
+    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8777", help='Weaviate database URL')
     parser.add_argument('-c', '--class-prefix', type=str, default="Slack", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
     parser.add_argument('-r', '--remove-existing', default=False, action=argparse.BooleanOptionalAction, help='Remove existing "<prefix>_Node" class in Weaviate before starting.')
     parser.add_argument('-d', '--debug', default=False, action=argparse.BooleanOptionalAction, help='Print debugging information, such as the message content.')
