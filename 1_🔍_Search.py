@@ -47,9 +47,10 @@ SIDEBAR_DESC = """
 JaneliaGPT uses OpenAI models to index various data sources in a vector database for searching. 
 Currently the following sources are indexed:
 * Janelia.org
-* Janelia-Software Slack Workspace
-* Janelia Wiki (partly)
 """
+#* Janelia-Software Slack Workspace
+#* Janelia Wiki (partly)
+#"""
 
 NODE_SCHEMA: List[Dict] = [
     {
