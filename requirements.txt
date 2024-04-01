@@ -1,11 +1,11 @@
-weaviate-client==4.5.1
+weaviate-client==3.26.2
 streamlit==1.32.2
 scrapy==2.11.1
 beautifulsoup4==4.12.3
 html2text==2024.2.26
-llama-index==0.10.25
-llama-index-llms-openai
-llama-index-vector-stores-weaviate
-llama-index-embeddings-openai
+llama-index==0.10.26
+llama-index-llms-openai==0.1.14
+llama-index-vector-stores-weaviate==0.1.4
+llama-index-embeddings-openai==0.1.7
 slack-sdk==3.27.1
 watchdog==4.0.0
