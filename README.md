@@ -1,8 +1,6 @@
 # gpt-semantic-search
 
-Semantic search service for Janelia resources using OpenAI GPT models.
-
-Largely based on [this tutorial](https://alphasec.io/query-your-own-documents-with-llamaindex-and-langchain/).
+Semantic search service for Janelia resources using OpenAI GPT models. This repository contains tools for indexing various Janelia resources (website, wiki, Slack) into a [Weaviate](https://weaviate.io/) vector database, and a simple web-UI built with [Streamlit](https://streamlit.io/) which allows users to query the indexed data set using a ChatGPT-style interface.
 
 ## Running
 
@@ -10,7 +8,7 @@ This service requires [Docker](https://docs.docker.com/get-docker/) to be instal
 
     docker compose up -d
 
-This will start both the Weaviate vector database, and the Streamlit webapp. You can then access the webapp at [http://localhost:8501]().
+This will start both the Weaviate vector database, and the Streamlit webapp. You can then access the webapp at http://localhost:8501.
 
 ## Development
 
