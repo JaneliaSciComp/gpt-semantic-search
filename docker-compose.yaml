@@ -4,7 +4,7 @@ services:
   weaviate:
     image: semitechnologies/weaviate:1.24.4
     ports:
-    - 8080:8080
+    - 8077:8080
     restart: on-failure:0
     volumes:
       - ${WEAVIATE_STORAGE_PATH:-./storage/weaviate}:/var/lib/weaviate
@@ -23,7 +23,7 @@ services:
     environment:
       STREAMLIT_SERVER_FILE_WATCHER_TYPE: 'none'
       STREAMLIT_SERVER_HEADLESS: 'true'
-      WEAVIATE_URL: 'http://weaviate:8080'
+      WEAVIATE_URL: 'http://weaviate:8077'
       OPENAI_API_KEY:
       SLACK_TOKEN:
 
