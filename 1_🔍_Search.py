@@ -171,6 +171,7 @@ def get_query_engine(_weaviate_client):
 
     llm = OpenAI(model=model, temperature=temperature)
     embed_model = OpenAIEmbedding(model=EMBED_MODEL_NAME)
+    prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
 
     Settings.llm = llm
     Settings.embed_model = embed_model
