@@ -12,16 +12,16 @@ st.markdown(f"""
 
 ## How does JaneliaGPT work?
 Content from the Janelia-Software Slack, the Janelia Wiki, and Janelia.org are translated into semantic vectors using OpenAI's embedding API 
-and stored in a vector database. Your query is embedded as well and used to search the database for content that is 
-semantically related to your query. The GPT language model tries to answer your question using the top {num_results} results 
+and stored in a vector database. Your query is embedded in the same way and then used to search the database for content that is 
+semantically related to your query. The GPT language model tries to answer your question using the content of the top {num_results} results 
 (configurable under Settings).
 
 ## Why is the answer unrelated to my question?
-At the moment this is just a proof of concept. It works brilliantly for some questions and fails spectacularly for others.
+At the moment this is just a proof of concept. It works brilliantly for some questions and fails spectacularly for others. 
 Please use the survey buttons to record your experience so that we can use the results to improve the search results in future iterations. 
 
 ## Why can't I find something that was posted recently?
-Source data was downloaded on April 1, 2024. If the search proves useful, we can implement automated downloading and incremental indexing. 
+Source data was downloaded on May 20, 2024. If the search proves useful, we can implement automated downloading and incremental indexing to keep the information up-to-date.
 
 ## Where is the source code?
 [![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JaneliaSciComp/gpt-semantic-search)
