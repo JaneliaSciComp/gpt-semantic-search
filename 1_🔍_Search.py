@@ -47,10 +47,9 @@ SIDEBAR_DESC = """
 JaneliaGPT uses OpenAI models to index various data sources in a vector database for searching. 
 Currently the following sources are indexed:
 * Janelia.org
+* Janelia-Software Slack Workspace
+* Janelia Wiki (spaces 'SCSW', 'SCS', and 'ScientificComputing')
 """
-#* Janelia-Software Slack Workspace
-#* Janelia Wiki (partly)
-#"""
 
 NODE_SCHEMA: List[Dict] = [
     {
@@ -150,7 +149,7 @@ def get_slack_client():
     if not res["ok"]:
         logger.error(f"Error initializing Slack API: {res['error']}")
         sys.exit(1)
-    
+
     return slack_client
 
 
@@ -207,11 +206,11 @@ def get_response(_query_engine, _slack_client, query):
     for node in get_unique_nodes(response.source_nodes):
         extra_info = node.node.extra_info
         text = node.node.text
-        
+
         text = re.sub("\n+", " ", text)
         text = textwrap.shorten(text, width=100, placeholder="...")
         text = escape_text(text)
-        
+
         source = extra_info['source']
 
         if source.lower() == 'slack':
@@ -220,7 +219,7 @@ def get_response(_query_engine, _slack_client, query):
             msg += f"* {source}: [{text}]({get_message_link(_slack_client, channel_id, ts)})\n"
         else:
             msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
-    
+
     return msg
 
 
@@ -232,7 +231,7 @@ def get_cached_response(_query_engine, _slack_client, query):
 parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
 parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
 args = parser.parse_args()
-        
+
 st.sidebar.markdown(SIDEBAR_DESC)
 
 if 'survey_complete' not in st.session_state:
@@ -240,7 +239,7 @@ if 'survey_complete' not in st.session_state:
 
 if 'query' not in st.session_state:
     st.session_state.query = ""
-    
+
 weaviate_client = get_weaviate_client(args.weaviate_url)
 
 st.title("Ask JaneliaGPT")
@@ -273,7 +272,7 @@ elif st.session_state.response:
 
 
 def survey_click(survey_response):
-    
+
     st.session_state.survey = survey_response
     st.session_state.survey_complete = True
 
