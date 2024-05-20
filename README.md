@@ -38,14 +38,14 @@ For running the Wiki download, you must have a `CONFLUENCE_TOKEN` in your enviro
 
 ### Download data sources
 
-If you are at Janelia you can experiment easily by copying the data sources from shared storage on NRS:
+If you are at Janelia you can get data sources from shared storage:
 
     mkdir ./data
     cp -R /nrs/scicompsoft/rokicki/semantic-search/data ./data
 
-If you want to download the latest data:
+If you want to download the latest data from each source:
 
-1. Confluence Wiki - use the [DownloadConfluence.ipynb](notebooks/DownloadConfluence.ipynb) notebook to download the wiki content
+1. Confluence Wiki - run the `download_wiki.py` script to download the latest wiki pages to `./data/wiki`
 2. Slack - export data from Slack using their [export tool](https://slack.com/help/articles/201658943-Export-your-workspace-data).
 3. Janelia.org - run the web crawling spider with `scrapy runspider spider.py`
 
