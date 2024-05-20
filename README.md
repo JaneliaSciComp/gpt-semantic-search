@@ -81,7 +81,7 @@ And then select the env as the Python Interpreter for the notebook.
 
 Build from this directory (setting a version number instead of "latest"):
 
-    docker build . -t ghcr.io/janeliascicomp/gpt-semantic-search:latest
+    docker build --no-cache . -t ghcr.io/janeliascicomp/gpt-semantic-search:latest
 
 Then push:
 
