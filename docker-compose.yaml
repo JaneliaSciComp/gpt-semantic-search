@@ -9,11 +9,13 @@ services:
     volumes:
       - ${WEAVIATE_STORAGE_PATH:-./storage/weaviate}:/var/lib/weaviate
     environment:
-      QUERY_DEFAULTS_LIMIT: 25
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       DEFAULT_VECTORIZER_MODULE: 'none'
+      QUERY_DEFAULTS_LIMIT: 25
       CLUSTER_HOSTNAME: 'node1'
-      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DISABLE_TELEMETRY: 'true'
+      LIMIT_RESOURCES: 'true'
 
   semantic-search:
     image: ghcr.io/janeliascicomp/gpt-semantic-search:latest

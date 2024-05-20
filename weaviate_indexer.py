@@ -15,6 +15,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
+EMBED_MODEL_NAME="text-embedding-3-large"
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
@@ -119,8 +120,8 @@ class Indexer():
             logger.info(f"Creating {class_name} class in Weaviate")
             create_schema(client, class_prefix)
 
-        # Create LLM embedding model    
-        embed_model = OpenAIEmbedding(embed_batch_size=20, model="text-embedding-3-large")
+        # Create LLM embedding model
+        embed_model = OpenAIEmbedding(embed_batch_size=20, model=EMBED_MODEL_NAME)
         prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
         service_context = ServiceContext.from_defaults(embed_model=embed_model, prompt_helper=prompt_helper)
 

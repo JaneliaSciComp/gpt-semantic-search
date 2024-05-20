@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Constants
+EMBED_MODEL_NAME="text-embedding-3-large"
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
@@ -169,8 +170,7 @@ def get_query_engine(_weaviate_client):
     logger.info(f"  num_results: {num_results}")
 
     llm = OpenAI(model=model, temperature=temperature)
-    embed_model = OpenAIEmbedding(model="text-embedding-3-large")
-    prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
+    embed_model = OpenAIEmbedding(model=EMBED_MODEL_NAME)
 
     Settings.llm = llm
     Settings.embed_model = embed_model
