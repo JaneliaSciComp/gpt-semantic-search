@@ -70,6 +70,7 @@ for space in spaces:
             page_id,path,title,body,labels,ancestors,authors = parse_page(page)
 
             # Skip archived pages
+            if "ARCHIVE_SC" in ancestors: continue
             if "ARCHIVE_SCSW" in ancestors: continue
 
             filepath = f"{outpath}/{space}/{page_id}"
