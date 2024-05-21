@@ -94,3 +94,18 @@ Once the upload is done, remember to update the version number in `docker-compos
 Run this in the venv:
 
     pip3 freeze > requirements.txt
+
+
+## Future Directions
+
+* Run search when user presses the RETURN key
+* Add option to decrease `top_p` for more deterministic responses
+* Ways to "correct" the model over time
+    * Ability to remove (i.e. block) incorrect sources from the database
+    * Weight more recent data more highly in the search results
+* SlackBot
+* Additional custom prompting
+    * Focus answers on Janelia employees
+    * Redirect to HughesHub if unable to answer a question
+
+
