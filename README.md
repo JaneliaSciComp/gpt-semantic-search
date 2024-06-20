@@ -26,7 +26,7 @@ You can run just Weaviate as follows:
 
     docker compose up weaviate -d
 
-You can verify that Weaviate is running by opening [http://localhost:8080]() in your browser.
+You can verify that Weaviate is running by opening [http://localhost:8777]() in your browser.
 
 ### Set up tokens
 
@@ -63,9 +63,13 @@ Add the janelia.org web site:
 
     ./index_web.py -i ./data/janelia.org -c Janelia
 
+
 ### Start semantic search webapp
 
-    streamlit run 1_🔍_Search.py
+To run the webapp in dev mode, use streamlit:
+
+    streamlit run 1_🔍_Search.py -- -w http://search.int.janelia.org:8777
+
 
 ## Development Notes
 
