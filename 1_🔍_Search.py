@@ -245,7 +245,10 @@ weaviate_client = get_weaviate_client(args.weaviate_url)
 
 st.title("Ask JaneliaGPT")
 query = st.text_input("What would you like to ask?", '', key="query")
-if st.button("Submit"):
+
+
+#If query is filled in (which occurs when enter key is pressed) or the submit button is clicked
+if query or st.button("Submit"):
     logger.info(f"Query: {query}")
     try:
         query_engine = get_query_engine(weaviate_client)
