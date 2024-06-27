@@ -29,11 +29,14 @@ def init_state():
     if "model" not in st.session_state:
         st.session_state.update({
             "model_options": get_models(),
-            "model": "gpt-4o",
+            #"model": "gpt-4o",
+            "model": "gpt-3.5-turbo",
             "search_alpha": 55,
             "num_results": 3,
             "temperature": 0,
             "class_prefix": DEFAULT_CLASS_PREFIX,
-            "response": None
+            "response": None,
+            "admin_toggle": False,
+            
         })
         #print("initialized session state: ",st.session_state)
