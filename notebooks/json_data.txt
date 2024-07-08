@@ -1,0 +1,48 @@
+n 3.26.2. The latest version is 4.6.5.
+            Please consider upgrading to the latest version. See https://weaviate.io/developers/weaviate/client-libraries/python for details.
+  warnings.warn(
+INFO:__main__:Query: What is scicomp
+INFO:__main__:Getting query engine with parameters:
+INFO:__main__:  model: gpt-3.5-turbo
+INFO:__main__:  class_prefix: Janelia
+INFO:__main__:  temperature: 0.0
+INFO:__main__:  search_alpha: 0.55
+INFO:__main__:  num_results: 3
+/Users/bakhalea/Documents/gpt-semantic-search/env/lib/python3.12/site-packages/langchain/_api/module_import.py:92: LangChainDeprecationWarning: Importing ChatMessageHistory from langchain.memory is deprecated. Please replace deprecated imports:
+
+>> from langchain.memory import ChatMessageHistory
+
+with new imports of:
+
+>> from langchain_community.chat_message_histories import ChatMessageHistory
+You can use the langchain cli to **automatically** upgrade many imports. Please see documentation here https://python.langchain.com/v0.2/docs/versions/v0_2/ 
+  warn_deprecated(
+WARNING:llama_index.vector_stores.weaviate.base:class_prefix is deprecated, please use index_name
+DEBUG:openai._base_client:Request options: {'method': 'post', 'url': '/embeddings', 'files': None, 'post_parser': <function Embeddings.create.<locals>.parser at 0x30aed40e0>, 'json_data': {'input': ['What is scicomp'], 'model': 'text-embedding-3-large', 'encoding_format': 'base64'}}
+DEBUG:openai._base_client:Sending HTTP Request: POST https://api.openai.com/v1/embeddings
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+DEBUG:openai._base_client:HTTP Response: POST https://api.openai.com/v1/embeddings "200 OK" Headers([('date', 'Wed, 03 Jul 2024 15:01:29 GMT'), ('content-type', 'application/json'), ('transfer-encoding', 'chunked'), ('connection', 'keep-alive'), ('access-control-allow-origin', '*'), ('openai-model', 'text-embedding-3-large'), ('openai-organization', 'janelia-scsw'), ('openai-processing-ms', '89'), ('openai-version', '2020-10-01'), ('strict-transport-security', 'max-age=31536000; includeSubDomains'), ('x-ratelimit-limit-requests', '10000'), ('x-ratelimit-limit-tokens', '5000000'), ('x-ratelimit-remaining-requests', '9999'), ('x-ratelimit-remaining-tokens', '4999997'), ('x-ratelimit-reset-requests', '6ms'), ('x-ratelimit-reset-tokens', '0s'), ('x-request-id', 'req_10e6b65c8a471d0d3adad87fecf59a87'), ('cf-cache-status', 'DYNAMIC'), ('set-cookie', '__cf_bm=OqE_0VZyQ.spP7ak.OsGqKKc38j64lxtItbc.3DujoA-1720018889-1.0.1.1-VajdrycHeHzp_Rkc9uM6B2gul37rJK8E55GJQVVLJkaS6DCeSeFqV_ZiDlSSZX4s3.FCwcdnvAQthYTnN7SreA; path=/; expires=Wed, 03-Jul-24 15:31:29 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('set-cookie', '_cfuvid=HLkg5lUOzTIp1PWG_C1aKMGhJGsmObiIPN1ZfHjPRr8-1720018889345-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('server', 'cloudflare'), ('cf-ray', '89d7c048fbab6ff1-IAD'), ('content-encoding', 'gzip'), ('alt-svc', 'h3=":443"; ma=86400')])
+DEBUG:openai._base_client:request_id: req_10e6b65c8a471d0d3adad87fecf59a87
+DEBUG:llama_index.vector_stores.weaviate.base:Using hybrid search with alpha 0.55
+DEBUG:llama_index.vector_stores.weaviate.base:Using limit of 3
+DEBUG:llama_index.core.indices.utils:> Top 3 nodes:
+> [Node d79c66b5-5502-4ade-a715-e7a3cdc588e8] [Similarity score:             0.289439] Title: SciComp Software Teams
+Authors: Stephan Preibisch, Konrad Rokicki
+Ancestors: Scientific Co...
+> [Node 2d2acf7a-f862-4086-9245-d7f68ae77505] [Similarity score:             0.426994] 8.8| Scientific Linux SL release 5.3 (Boron)|  |   
+login (e02u21)| 5.8.8| Scientific Linux SL re...
+> [Node 93ebdcd7-1dcd-4bcf-8d73-d6ef22631b0f] [Similarity score:             0.446492] Title: SciComp-Area Monitors
+Authors: Unknown User (khairyk)
+Ancestors: Home / Scientific Computi...
+DEBUG:openai._base_client:Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'system', 'content': "You are an expert Q&A system that is trusted around the world.\nAlways answer the query using the provided context information, and not prior knowledge.\nSome rules to follow:\n1. Never directly reference the given context in your answer.\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines."}, {'role': 'user', 'content': 'Context information is below.\n---------------------\nsource: Wiki\ntitle: SciComp Software Teams\nlink: https://wikis.janelia.org/display/SCSW/SciComp+Software+Teams\n\nTitle: SciComp Software Teams\nAuthors: Stephan Preibisch, Konrad Rokicki\nAncestors: Scientific Computing Software\n  * Computational Methods Team\n  * Software Engineering\n  * Solutions Team\n\nsource: Wiki\ntitle: Perl usage in SciComp\nlink: https://wikis.janelia.org/display/SCSW/Perl+usage+in+SciComp\n\n8.8| Scientific Linux SL release 5.3 (Boron)|  |   \nlogin (e02u21)| 5.8.8| Scientific Linux SL release 5.3 (Boron)|  |   \nlogin1 (e05u03)| 5.10.1| Scientific Linux release 6.3 (Carbon)|  |   \nlogin2 (e02u19)| 5.8.8| Scientific Linux SL release 5.3 (Boron)|  |   \nflweb.janelia.org (e03u29)| 5.8.8| Scientific Linux SL release 5.5 (Boron)|  |   \nflweb-dev| 5.8.8| Scientific Linux SL release 5.5 (Boron)|  |   \n(cluster nodes)| 5.10.1| Scientific Linux release 6.3 (Carbon)|  |\n\nsource: Wiki\ntitle: SciComp-Area Monitors\nlink: https://wikis.janelia.org/display/ScientificComputing/SciComp-Area+Monitors\n\nTitle: SciComp-Area Monitors\nAuthors: Unknown User (khairyk)\nAncestors: Home / Scientific Computing Software\ncurrent (2018 April 19th) set of slides designated for display on monitors as\none approaches the SciComp area:\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: What is scicomp\nAnswer: '}], 'model': 'gpt-3.5-turbo', 'stream': False, 'temperature': 0.0}}
+DEBUG:openai._base_client:Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+DEBUG:openai._base_client:HTTP Response: POST https://api.openai.com/v1/chat/completions "200 OK" Headers([('date', 'Wed, 03 Jul 2024 15:01:30 GMT'), ('content-type', 'application/json'), ('transfer-encoding', 'chunked'), ('connection', 'keep-alive'), ('openai-organization', 'janelia-scsw'), ('openai-processing-ms', '547'), ('openai-version', '2020-10-01'), ('strict-transport-security', 'max-age=31536000; includeSubDomains'), ('x-ratelimit-limit-requests', '10000'), ('x-ratelimit-limit-tokens', '1000000'), ('x-ratelimit-remaining-requests', '9999'), ('x-ratelimit-remaining-tokens', '999539'), ('x-ratelimit-reset-requests', '6ms'), ('x-ratelimit-reset-tokens', '27ms'), ('x-request-id', 'req_1898306ff955db75ebbc765c51d22b3c'), ('cf-cache-status', 'DYNAMIC'), ('set-cookie', '__cf_bm=oMAp4.PmtJ8eedI8_.QAYjRKYN29_2vsN93esCubtTo-1720018890-1.0.1.1-rYdw0kBFPiIl0HQ192cZEdT8vUThYfvydEpvVF5Y5KSQPWPOf.QuCVOODyHUqqWpX3Sr3q.XPl_L_WU6IEu6LA; path=/; expires=Wed, 03-Jul-24 15:31:30 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('set-cookie', '_cfuvid=B7AW5dLDvPR09filmkwHEhgQbayiOmKpUBCmVHJ4b14-1720018890208-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('server', 'cloudflare'), ('cf-ray', '89d7c04b9fcd7ff9-IAD'), ('content-encoding', 'gzip'), ('alt-svc', 'h3=":443"; ma=86400')])
+DEBUG:openai._base_client:request_id: req_1898306ff955db75ebbc765c51d22b3c
+INFO:__main__:Response saved as 7ffc7406-1c7f-4166-94d4-e7ecad7f9a48: SciComp refers to Scientific Computing Software, which includes teams such as Computational Methods Team, Software Engineering, and Solutions Team.
+
+Sources:
+
+* Wiki: [SciComp Software Teams](https://wikis.janelia.org/display/SCSW/SciComp+Software+Teams)
+* Wiki: [Perl usage in SciComp](https://wikis.janelia.org/display/SCSW/Perl+usage+in+SciComp)
+* Wiki: [SciComp-Area Monitors](https://wikis.janelia.org/display/ScientificComputing/SciComp-Area+Monitors)

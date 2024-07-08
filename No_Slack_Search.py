@@ -202,7 +202,7 @@ def get_response(_query_engine, query):
         source = extra_info['source']
 
         
-        msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
+        msg += f"* {source}: [{extra_info['title']}]({extra_info['li nk']})\n"
 
     return msg
 

@@ -36,7 +36,7 @@ def init_state():
             "temperature": 0,
             "class_prefix": DEFAULT_CLASS_PREFIX,
             "response": None,
-            "admin_toggle": False,
+            "admin_toggle": True,
             
         })
         #print("initialized session state: ",st.session_state)
