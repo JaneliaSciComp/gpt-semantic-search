@@ -118,8 +118,7 @@ weaviate_url = "http://localhost:8777"
 service_src = SemanticSearchServiceSources(weaviate_url)
 service_ans = SemanticSearchService(weaviate_url)
 
-# true -> pass
-# false -> fail
+# Hard, custom unit test that check for the presence of certain elements in the output and sources. Will fail most tests until the generaiton models are changed from gpt 3.5 to gpt 4o
 def custom_checking(Responses):
     data_list = [] 
     test_cases = {}
@@ -202,7 +201,6 @@ def test_customer_chatbot(test_case: LLMTestCase):
     # answer_relevancy_metric = Number of statements that are relevant to the question / Total number of statements. 
     answer_relevancy_metric = AnswerRelevancyMetric(threshold=0.5, model="gpt-3.5-turbo")
     assert_test(test_case,  [hallucination_metric, answer_relevancy_metric])
-
 
 
 
