@@ -69,7 +69,7 @@ class SemanticSearchService:
         response = self.query_engine.query(query)
         return response.response
 
-# Example usage
+# Example usage 
 if __name__ == "__main__":
     weaviate_url = "http://localhost:8777"
     service = SemanticSearchService(weaviate_url)

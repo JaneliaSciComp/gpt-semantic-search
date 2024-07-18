@@ -124,7 +124,7 @@ def custom_checking(Responses):
     test_cases = {}
     for response in Responses:
         input_question = response['Question']
-        actual_output = service_ans.generate_response(input_question)
+        actual_output =  service_ans.generate_response(input_question)
         actual_sources = service_src.generate_response(input_question)
         current_id = response['ID']
         data_list.append([input_question, actual_output, actual_sources, current_id])
