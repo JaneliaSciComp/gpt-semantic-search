@@ -8,15 +8,6 @@ init_state()
 # Initialize the client
 client = weaviate.Client("http://search.int.janelia.org:8777")
 
-# Initialize variables for pagination
-
-
-# all_objects now contains all objects from Weaviate
-
-
-# Fetch data and extract the list of objects
-# Assuming 'client' is already initialized and available
-
 def fetch_all_survey_responses(client, class_name="SurveyResponses", limit=100):
     all_responses = []
     offset = 0
