@@ -90,13 +90,12 @@ class SemanticSearchService:
 
 
     def generate_response(self, query):
-
-    # Escape certain characters which the 
+        # Escape certain characters in the query
         query = re.sub("\"", "", query)
 
         response = self.query_engine.query(query)
 
-        msg = f"{response.response}\n\nSources:\n\n"
+        msg = f"{response.response}\n\nSources:\n"
         for node in self.get_unique_nodes(response.source_nodes):
             extra_info = node.node.extra_info
             text = node.node.text
@@ -106,9 +105,11 @@ class SemanticSearchService:
             text = self.escape_text(text)
 
             source = extra_info['source']
+            title = extra_info['title']
+            link = extra_info['link']
 
-        
-            msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
+            # Format the source as a Slack-compatible link
+            msg += f"• {source}: <{link}|{title}>\n"
 
         return msg
 
