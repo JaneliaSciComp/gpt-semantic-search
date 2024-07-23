@@ -49,7 +49,7 @@ class SemanticSearchService:
 
     def get_query_engine(self):
         # Assuming settings like model, class_prefix, etc., are set elsewhere or passed as parameters
-        llm = OpenAI(model="gpt-3.5-turbo", temperature=0)
+        llm = OpenAI(model="gpt-4o", temperature=0)
         embed_model = OpenAIEmbedding(model="text-embedding-3-large")
         prompt_helper = PromptHelper(4096, 256, 0.1)
 

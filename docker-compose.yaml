@@ -29,3 +29,20 @@ services:
       OPENAI_API_KEY:
       SLACK_TOKEN:
 
+  slack-bot:
+
+    build:
+      context: .
+      dockerfile: Dockerfile_slack
+    restart: unless-stopped
+    environment:
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN}
+      WEAVIATE_URL: 'http://weaviate:8080'
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      - weaviate
+
+
+
+
