@@ -42,7 +42,9 @@ services:
       OPENAI_API_KEY: OPENAI_API_KEY
     depends_on:
       - weaviate
-
+    volumes:
+      - ./slack_app.py:/app/slack_app.py:ro
+      - ./generate_full_response.py:/app/generate_full_response.py:ro
 
 
 
