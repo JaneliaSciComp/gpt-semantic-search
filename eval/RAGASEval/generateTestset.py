@@ -28,7 +28,6 @@ from langchain_community.embeddings import OllamaEmbeddings
 
 
 
-data_path = '../data/janelia.org'  # Use './' to indicate the current directory
 text_maker = html2text.HTML2Text()
 text_maker.ignore_links = True
 text_maker.images_to_alt = True
@@ -401,12 +400,12 @@ class ArchivedSlackLoader():
                 documents.append(doc)
         return documents
 
-data_path = '../data/slack/janelia-software/slack_to_2023-05-18'
-loader = ArchivedSlackLoader(data_path)
-documents = loader.load_all_documents()
-with open('documents.txt', 'w') as file:
-    for document in documents:
-        file.write(str(document) + '\n')
+# data_path = '../data/slack/janelia-software/slack_to_2023-05-18'
+# loader = ArchivedSlackLoader(data_path)
+# documents = loader.load_all_documents()
+# with open('documents.txt', 'w') as file:
+#     for document in documents:
+#         file.write(str(document) + '\n')
 
 
 """DOCUMENT LOADER ALL SOURCES"""
@@ -458,10 +457,42 @@ class DocumentLoader:
                     documents_sample = random.sample(documents, sample_size)
                     all_documents.extend(documents_sample)
         return all_documents
+    
+    def test_load_documents(self):
+        # This method is for testing purposes and will only load the first document in each folder path
+        all_documents = []
+        for folder_name in os.listdir(self.root_dir):
+            folder_path = os.path.join(self.root_dir, folder_name)
+            if os.path.isdir(folder_path):
+                if folder_name == "wiki":
+                    loader = WikiLoader(folder_path)
+                elif folder_name == "slack":
+                    # Specify the two subdirectories for slack
+                    subdirs = ["janelia-software/slack_to_2023-05-18"]
+                    for subdir in subdirs:
+                        subfolder_path = os.path.join(folder_path, subdir)
+                        # Check if the subdirectory exists
+                        if os.path.isdir(subfolder_path):
+                            loader = ArchivedSlackLoader(subfolder_path)
+                            documents = loader.load_all_documents()
+                            # Only load the first document for testing
+                            if documents:
+                                all_documents.append(documents[0])
+                elif folder_name == "janelia.com":
+                    loader = WebSiteLoader(folder_path)
+                else:
+                    continue  # Skip if folder doesn't match any criteria
+                # For non-slack directories
+                if folder_name != "slack":
+                    documents = loader.load_all_documents()
+                    # Only load the first document for testing
+                    if documents:
+                        all_documents.append(documents[0])
+        return all_documents
 
 # Assuming your data folder is at "./data/"
-loader = DocumentLoader("../data")
-documents = loader.load_documents()
+loader = DocumentLoader("../../data")
+documents = loader.test_load_documents()
 # print (documents)
 # Assuming your data folder is at "../data/"
 with open('documents.txt', 'w') as file:
@@ -473,8 +504,8 @@ with open('documents.txt', 'w') as file:
 # Now `final_df` contains all the generated testsets in one DataFrame
 
 base_url_gen = "http://127.0.0.1:11434"
-generator_llm = Ollama(model="llama3", base_url=base_url_gen)
-critic_llm = Ollama(model="llama3", base_url=base_url_gen)
+generator_llm = Ollama(model="llama3.1:70b-instruct-q5_1", base_url=base_url_gen)
+critic_llm = Ollama(model="llama3.1:70b-instruct-q5_1", base_url=base_url_gen)
 
 base_url_embed = "http://127.0.0.1:11434"
 embeddings = OllamaEmbeddings(

@@ -30,9 +30,10 @@ services:
       SLACK_TOKEN:
 
   slack-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile_slack
+    image: slack-bot:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile_slack
     restart: unless-stopped
     environment:
       SLACK_BOT_TOKEN: 

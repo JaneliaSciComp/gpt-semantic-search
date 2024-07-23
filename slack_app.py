@@ -80,7 +80,7 @@ logger = logging.getLogger(__name__)
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
 # # Initialize the SemanticSearchService
-weaviate_url = "http://localhost:8777"
+weaviate_url = os.environ["WEAVIATE_URL"]
 service = SemanticSearchService(weaviate_url)
 
 # # Conversation history (we'll keep this for future use)
