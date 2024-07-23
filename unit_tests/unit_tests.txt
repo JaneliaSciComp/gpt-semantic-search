@@ -1,0 +1,79 @@
+-Question 1:
+    -Object: 1
+    -ID: 00a4917b-e25f-43da-9771-bc4cf742c3ec
+    -Question: Where do i go if i need tech help at janelia
+    -Answer: 
+    -Response Notes: Check for email support@hhmi.org
+    -Source Notes: Wiki: Getting Help (https://wikis.janelia.org/display/SCSW/Getting+Help)
+
+-Question 2:
+    -Object: 4
+    -ID: 024cf273-1920-43cb-a7e8-c3191af81c59
+    -Question: Where do i go if i need tech help at janelia
+    -Answer: If you need tech help at Janelia, you should create a Help Desk ticket either by using their portal or by emailing support@hhmi.org. You can also walk over to the Help Desk, which is located above the fitness center.
+    -Response Notes: Look for help desk and support@hhmi.org
+    -Source Notes: Wiki: Getting Help (https://wikis.janelia.org/display/SCSW/Getting+Help)
+
+-Question 3:
+    -Object: 6
+    -ID: 02e95fd0-fbfc-461b-bec9-7bb1278ba7bb
+    -Question: What is mdas
+    -Answer: MDAS stands for "microscope direct attached storage." It is a specialized storage system designed to handle high-speed data capture from microscopes, providing a distributed and shared storage solution. The system includes a tiered storage approach with SSDs for incoming writes and larger spinning disk pools for long-term storage.
+    -Response Notes: None
+    -Source Notes: Wiki: Check if a Source points to a 11:44 slack message in #storage
+
+-Question 4:
+    -Object: 13
+    -ID: 0d0fad42-ba6a-4223-8bd2-2e58554d51cb
+    -Question: 
+    -Answer: 
+    -Response Notes: Completely misleading response and we dont know why. Should mention python according to sources
+    -Source Notes: 
+
+-Question 5:
+    -Object: 25
+    -ID: 189988ac-433e-4640-9684-5c46f40e54b5
+    -Question: Who knows the most about julia?
+    -Answer: Mark Kittisopikul appears to know the most about Julia, as he has shared multiple resources and information about the programming language.
+    -Response Notes: Only mentions one of two strong julia programmers
+    -Source Notes: 
+
+-Question 6:
+    -Object: 41
+    -ID: 2fa07b48-9130-458d-a38f-ae4860a901e3
+    -Question: how do I get help from cryoem?
+    -Answer: To get help from the CryoEM facility, you need to contact the facility to initiate the registration process. Once registered, you can use their online scheduler to book equipment time if you have ready-to-image cryo grids. If you need more assistance, have technical questions, or want to initiate a collaboration, you can contact the facility director, Dr. Zhiheng Yu, at yuz10@janelia.hhmi.org, or email cryoemfacility@janelia.hhmi.org.
+    -Response Notes: Includes yuz10@janelia.hhmi.org or cryoemfacility@janelia.hhmi.org
+    -Source Notes: first source should be "Web: Cryo-Electron Microscopy"
+
+-Question 7:
+    -Object: 49
+    -ID: 38af623d-35d3-48ab-8587-a40aa8d2694b
+    -Question: who are the group leaders in 4DCP?
+    -Answer: The group leaders in 4D Cellular Physiology (4DCP) are outstanding scientists who lead laboratories developing new tools or methods or bringing innovative approaches to the study of biological problems within Janelia's research areas. They are passionate about conducting research in various scientific areas, including cell biological mechanisms of development, cytoskeleton and signaling processes in tissues, deep tissue and intravital imaging, and more. These leaders are typically late-stage graduate students, postdoctoral associates, or early-career faculty members enthusiastic about taking charge of a small lab in a collaborative environment.
+    -Response Notes: Does not return any specific people
+    -Source Notes: Will not work unitl we segment over the 4DCP website in the future
+
+-Question 8:
+    -Object: 50
+    -ID: 38af623d-35d3-48ab-8587-a40aa8d2694b
+    -Question: what is neuronbridge
+    -Answer: NeuronBridge is a web application designed to facilitate the search for morphological matches between large data sets of neurons imaged using different modalities. It is particularly useful in neuroscience research involving Drosophila, where it helps researchers find similar neurons across various imaging techniques, such as electron microscopy and confocal light microscopy. The application features a user-friendly graphical interface, an extensible data model, a serverless cloud architecture, and a highly parallel image search engine. It supports the integration and reuse of its software code, open APIs, and processed data sets, and is available as a service to the neuroscience research community.
+    -Response Notes: This current resposne is great, use it as baseline
+    -Source Notes: Main source isnt very helpful (Wiki: NeuronBridge) only had links, future if we sort by content of the website and link name
+
+-Question 9:
+    -Object: 54
+    -ID: 3afec7cb-9a93-478f-ae0b-fa1815f57395
+    -Question: how many people are there in Misha Arhens lab?
+    -Answer: There are 18 people in Misha Ahrens' lab.
+    -Response Notes: There are not 18 people in the lab. Check with the data in ./data. Also, paste website content into gpt and ask the same question
+    -Source Notes: N/A
+
+-Question :
+    -Object: 
+    -ID: 
+    -Question: 
+    -Answer: 
+    -Response Notes: 
+    -Source Notes: 
