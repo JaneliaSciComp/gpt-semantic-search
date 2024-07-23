@@ -1,4 +1,5 @@
 FROM python:3.9-slim
+ARG GIT_TAG=main
 
 ENV WEAVIATE_URL=http://weaviate:8080
 
@@ -11,8 +12,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-ARG GIT_TAG=Survey-Response-UI
-RUN git clone https://github.com/ArjunBakhale/gpt-semantic-search.git --branch $GIT_TAG --single-branch  .
+RUN git clone --branch $GIT_TAG --depth 1 https://github.com/ArjunBakhale/gpt-semantic-search.git .
 
 RUN pip3 install -r requirements.txt
 RUN pip3 install slack_bolt
