@@ -160,6 +160,12 @@ cython_debug/
 #.idea/
 #
 
+/tempStorage
+
 /data
 /storage
 
+# macOS specific
+**/.DS_Store
+
+/eval

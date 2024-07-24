@@ -26,3 +26,24 @@ with col2:
     st.markdown(PARAM_EXPLANATION)
     
 st.text_input("Weaviate Class Prefix", key="class_prefix")
+
+import streamlit as st
+import os
+
+import streamlit as st
+
+# if st.session_state["admin_toggle"]:
+#     # Pages you want to show in your custom navigation
+#     pages = {
+#         "Survey Responses": "4_📋_Survey_Responses",
+#         "Unit Tests": "5_🧪_Unit_Tests",
+#     }
+
+#     # Sidebar for navigation
+#     st.sidebar.title("Navigation")
+#     selection = st.sidebar.radio("Go to", list(pages.keys()))
+
+#     # Redirect to the selected page
+#     if selection:
+#         selected_page = pages[selection]
+#         st.switch_page(f"pages/{selected_page}")

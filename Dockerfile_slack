@@ -1,0 +1,34 @@
+FROM python:3.10-slim
+ARG GIT_TAG=main
+
+ENV WEAVIATE_URL=http://weaviate:8080
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN git clone --branch $GIT_TAG --depth 1 https://github.com/ArjunBakhale/gpt-semantic-search.git .
+
+RUN ls -la /app/pages
+
+RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm -f {} +
+
+RUN ls -la /app/pages
+
+
+RUN pip3 install -r requirements.txt
+RUN pip3 install slack_bolt
+
+LABEL \
+    org.opencontainers.image.title="JaneliaGPT Slack Bot" \
+    org.opencontainers.image.description="Slack bot for Janelia GPT Semantic Search" \
+    org.opencontainers.image.authors="rokickik@janelia.hhmi.org" \
+    org.opencontainers.image.licenses="BSD-3-Clause" \
+    org.opencontainers.image.version=${GIT_TAG} 
+
+CMD ["python", "slack_app.py"]

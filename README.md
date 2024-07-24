@@ -69,7 +69,8 @@ Add the janelia.org web site:
 To run the webapp in dev mode, use streamlit:
 
     streamlit run 1_🔍_Search.py -- -w http://search.int.janelia.org:8777
-
+    
+    streamlit run No_Slack_Search.py -- -w http://search.int.janelia.org:8777
 
 ## Development Notes
 
