@@ -1,2 +1,0 @@
-diptodip said: We have a new 101 that talks a little bit about the differences between using `OpticalSystem` and `Microscope`: https://chromatix.readthedocs.io/en/latest/101/
-And we also have vmappable `Field`s: https://chromatix.readthedocs.io/en/latest/higher_rank/#combining-higher-rank-fields-with-vmap
