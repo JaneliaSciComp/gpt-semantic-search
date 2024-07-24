@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.10-slim
 ARG GIT_TAG=main
 
 ENV WEAVIATE_URL=http://weaviate:8080
@@ -14,7 +14,12 @@ WORKDIR /app
 
 RUN git clone --branch $GIT_TAG --depth 1 https://github.com/ArjunBakhale/gpt-semantic-search.git .
 
-RUN ls -la /app
+RUN ls -la /app/pages
+
+RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm -f {} +
+
+RUN ls -la /app/pages
+
 
 RUN pip3 install -r requirements.txt
 RUN pip3 install slack_bolt
