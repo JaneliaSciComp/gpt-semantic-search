@@ -167,3 +167,5 @@ cython_debug/
 
 # macOS specific
 **/.DS_Store
+
+/eval
