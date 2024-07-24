@@ -30,7 +30,7 @@ services:
       SLACK_TOKEN:
 
   slack-bot:
-    image: slack-bot:latest
+    image: ghcr.io/janeliascicomp/slack-bot-jgpt:latest
     # build:
     #   context: .
     #   dockerfile: Dockerfile_slack
@@ -39,12 +39,20 @@ services:
       SLACK_BOT_TOKEN: 
       SLACK_APP_TOKEN: 
       WEAVIATE_URL: 'http://weaviate:8080'
-      OPENAI_API_KEY: OPENAI_API_KEY
+      OPENAI_API_KEY: 
     depends_on:
       - weaviate
-    volumes:
-      - ./slack_app.py:/app/slack_app.py:ro
-      - ./generate_full_response.py:/app/generate_full_response.py:ro
+    # volumes:
+    #   - ./slack_app.py:/app/slack_app.py:ro
+    #   - ./generate_full_response.py:/app/generate_full_response.py:ro
 
 
 
+
+# docker compose up -d
+
+# docker tag slack-bot:latest ghcr.io/janeliascicomp/slack-bot-jgpt:latest
+
+# echo $GITHUB_PAT | docker login ghcr.io -u ArjunBakhale --password-stdin
+
+# docker push ghcr.io/janeliascicomp/slack-bot-jgpt:latest

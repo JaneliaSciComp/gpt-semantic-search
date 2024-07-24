@@ -509,7 +509,7 @@ critic_llm = Ollama(model="llama3.1:70b-instruct-q5_1", base_url=base_url_gen)
 
 base_url_embed = "http://127.0.0.1:11434"
 embeddings = OllamaEmbeddings(
-    model="avr/sfr-embedding-mistral", 
+    model="avr/sfr-embedding-mistral:f16", 
     base_url=base_url_embed
 )
 

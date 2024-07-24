@@ -13,6 +13,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 RUN git clone --branch $GIT_TAG --depth 1 https://github.com/JaneliaSciComp/gpt-semantic-search.git .
 
+RUN ls -la /app/pages
+
+RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm -f {} +
+
+RUN ls -la /app/pages
+
 RUN pip3 install -r requirements.txt
 
 
