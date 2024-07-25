@@ -86,13 +86,17 @@ And then select the env as the Python Interpreter for the notebook.
 
 Build from this directory (setting a version number instead of "latest"):
 
-    docker build --no-cache . -t ghcr.io/janeliascicomp/gpt-semantic-search:latest
+    docker build --no-cache . -t ghcr.io/janeliascicomp/gpt-semantic-search-web:latest
 
 Then push:
 
-    docker push ghcr.io/janeliascicomp/gpt-semantic-search:latest
+    docker push ghcr.io/janeliascicomp/gpt-semantic-search-web:latest
 
 Once the upload is done, remember to update the version number in `docker-compose.yaml`.
+
+To rebuild the Slack bot:
+
+    docker build --no-cache . -f Dockerfile_slack -t ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest
 
 ### Update requirements.txt
 
