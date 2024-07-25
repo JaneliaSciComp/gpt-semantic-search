@@ -17,6 +17,8 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.vector_stores.weaviate import WeaviateVectorStore
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
 from llama_index.llms.openai import OpenAI
+from slack_sdk import WebClient
+
 warnings.simplefilter("ignore", ResourceWarning)
 
 warnings.simplefilter("ignore", ResourceWarning)
@@ -36,6 +38,7 @@ class SemanticSearchService:
         self.weaviate_url = weaviate_url
         self.weaviate_client = self.get_weaviate_client()
         self.query_engine = self.get_query_engine()
+        self.slack_client = self.get_slack_client()
 
     def get_weaviate_client(self):
         client = weaviate.Client(self.weaviate_url)
@@ -44,6 +47,21 @@ class SemanticSearchService:
         
         logger.info("Weaviate client created")
         return client
+    
+    def get_message_link(self, _slack_client, channel, ts):
+        res = _slack_client.chat_getPermalink(channel=channel, message_ts=ts)
+        if res['ok']:
+            return res['permalink']
+        
+    def get_slack_client(self):
+        slack_client = WebClient(token=os.environ.get('SLACK_TOKEN'))
+        res = slack_client.api_test()
+        if not res["ok"]:
+            logger.error(f"Error initializing Slack API: {res['error']}")
+            sys.exit(1)
+
+        return slack_client
+
 
     
 
@@ -105,11 +123,12 @@ class SemanticSearchService:
             text = self.escape_text(text)
 
             source = extra_info['source']
-            title = extra_info['title']
-            link = extra_info['link']
-
-            # Format the source as a Slack-compatible link
-            msg += f"• {source}: <{link}|{title}>\n"
+            if source.lower() == 'slack':
+                channel_id = extra_info['channel']
+                ts = extra_info['ts']
+                msg += f"* {source}: [{text}]({self.get_message_link(self.slack_client, channel_id, ts)})\n"
+            else:
+                msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
 
         return msg
 
