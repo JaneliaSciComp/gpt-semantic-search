@@ -30,13 +30,14 @@ services:
       SLACK_TOKEN:
 
   slack-bot:
-    image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.0
+    image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.2
     restart: unless-stopped
     environment:
-      SLACK_BOT_TOKEN: 
-      SLACK_APP_TOKEN: 
       WEAVIATE_URL: 'http://weaviate:8080'
       OPENAI_API_KEY: 
+      SLACK_BOT_TOKEN: 
+      SLACK_APP_TOKEN: 
+      SLACK_TOKEN:
     depends_on:
       - weaviate
     # volumes:
