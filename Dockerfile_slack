@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-RUN git clone --branch $GIT_TAG --depth 1 https://github.com/JaneliaSciComp/gpt-semantic-search.git .
+RUN git clone --branch $GIT_TAG --depth 1 https://github.com/ArjunBakhale/gpt-semantic-search.git .
 
 RUN ls -la /app/pages
 
