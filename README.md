@@ -98,6 +98,14 @@ To rebuild the Slack bot:
 
     docker build --no-cache . -f Dockerfile_slack -t ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest
 
+### Multi-arch builds
+
+To build the Slackbot container for both Linux and Mac:
+
+    export VERSION=0.1.3
+    docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f Dockerfile_slack .
+
+
 ### Update requirements.txt
 
 Run this in the venv:
