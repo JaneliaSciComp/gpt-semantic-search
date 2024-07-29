@@ -126,9 +126,9 @@ class SemanticSearchService:
             if source.lower() == 'slack':
                 channel_id = extra_info['channel']
                 ts = extra_info['ts']
-                msg += f"• {source}: <{text}|{self.get_message_link(self.slack_client, channel_id, ts)}>\n"
+                msg += f"• {source}: <{self.get_message_link(self.slack_client, channel_id, ts)}|{text}>\n"
             else:
-                msg += f"• {source}: <{extra_info['title']}|{extra_info['link']}>\n"
+                msg += f"• {source}: <{extra_info['link']}|{extra_info['title']}>\n"
 
         return msg
 

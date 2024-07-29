@@ -20,7 +20,6 @@ RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm 
 
 RUN ls -la /app/pages
 
-
 RUN pip3 install -r requirements.txt
 RUN pip3 install slack_bolt
 
