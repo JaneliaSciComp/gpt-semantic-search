@@ -6,20 +6,18 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from threading import Thread, Event
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-# Import your SemanticSearchService
 from generate_full_response import SemanticSearchService
 import logging
+import re
+
 logging.basicConfig(level=logging.INFO)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
-# # Initialize the SemanticSearchService
 weaviate_url = os.environ["WEAVIATE_URL"]
-service = SemanticSearchService(weaviate_url)
 
-# # Conversation history (we'll keep this for future use)
-# conversation_history = {}
+service = SemanticSearchService(weaviate_url)
 
 def update_message(client, channel, timestamp, text, blocks=None):
     client.chat_update(
@@ -29,16 +27,7 @@ def update_message(client, channel, timestamp, text, blocks=None):
         blocks=blocks
     )
 
-def generate_response_with_animation(event, say, client):
-    user_id = event['user']
-    channel = event['channel']
-    text = event['text'].split('>')[1].strip()
-    
-    # Initialize or update conversation history
-    # if user_id not in conversation_history:
-    #     conversation_history[user_id] = []
-    # conversation_history[user_id].append(f"Human: {text}")
-    
+def generate_response_with_animation(text, channel, thread_ts, client):
     # Send an initial message with a random thinking phrase
     thinking_phrases = [
         "Thinking...",
@@ -46,7 +35,11 @@ def generate_response_with_animation(event, say, client):
         "Hmmmmm..."
     ]
     initial_message = random.choice(thinking_phrases)
-    result = say(initial_message)
+    result = client.chat_postMessage(
+        channel=channel,
+        text=initial_message,
+        thread_ts=thread_ts  # This ensures the message is posted in the thread if there is one
+    )
     message_ts = result['ts']
     
     # Start the loading animation
@@ -82,59 +75,34 @@ def generate_response_with_animation(event, say, client):
         stop_event.set()
         animation_thread.join()
     
-    # Update conversation history
-    # conversation_history[user_id].append(f"Assistant: {response}")
-    
-    # # Truncate conversation history if it gets too long
-    # if len(conversation_history[user_id]) > 10:
-    #     conversation_history[user_id] = conversation_history[user_id][-10:]
-    
-    # Create a formatted response with markdown
     formatted_response = f"*Here's what I found:*\n\n{response}"
     
-    # Update the message with the final response
-    # blocks = [
-    #     {
-    #         "type": "section",
-    #         "text": {"type": "mrkdwn", "text": formatted_response}
-    #     },
-    #     {
-    #         "type": "context",
-    #         "elements": [
-    #             {
-    #                 "type": "mrkdwn",
-    #                 "text": "If you found this helpful, react with :thumbsup:. If not, react with :thumbsdown:."
-    #             }
-    #         ]
-    #     }
-    # ]
     update_message(client, channel, message_ts, formatted_response)
 
-@app.event("app_mention")
-def handle_mention(event, say, client):
-    Thread(target=generate_response_with_animation, args=(event, say, client)).start()
-
-# @app.event("reaction_added")
-# def handle_reaction(event, say):
-#     logger.debug(f"Reaction event received: {event}")
+def process_message(event, client):
+    text = event['text']
+    channel = event['channel']
+    thread_ts = event.get('thread_ts', event['ts'])
     
-#     reaction = event.get("reaction")
-#     user = event.get("user")
-#     item = event.get("item", {})
-#     ts = item.get("ts")
-#     channel = item.get("channel")
+    # Remove the bot mention if it exists
+    bot_id = client.auth_test()["user_id"]
+    text = re.sub(f'<@{bot_id}>', '', text).strip()
+    
+    Thread(target=generate_response_with_animation, args=(text, channel, thread_ts, client)).start()
 
-#     logger.info(f"Reaction: {reaction}, User: {user}, Timestamp: {ts}, Channel: {channel}")
+@app.event("app_mention")
+def handle_mention(event, client):
+    process_message(event, client)
 
-#     if reaction == "thumbsup":
-#         say(text="Thank you for the positive feedback! I'm glad I could help.", channel=channel, thread_ts=ts)
-#         logger.info("Positive feedback received")
-#     elif reaction == "thumbsdown":
-#         say(text="I'm sorry my response wasn't helpful. Could you provide more details about what you're looking for?", channel=channel, thread_ts=ts)
-#         logger.info("Negative feedback received")
-#     else:
-#         logger.info(f"Reaction {reaction} received but not handled")
-
+@app.event("message")
+def handle_message(event, client):
+    # Ignore messages from bots
+    if "bot_id" in event:
+        return
+    # Process messages in DMs
+    logger.info(event)
+    if event['channel_type'] == 'im':
+        process_message(event, client)
 
 if __name__ == "__main__":
     handler = SocketModeHandler(app, str(os.environ["SLACK_APP_TOKEN"]))
