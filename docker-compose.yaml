@@ -30,7 +30,7 @@ services:
       SLACK_TOKEN:
 
   slack-bot:
-    image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.5
+    image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.4
     restart: unless-stopped
     environment:
       WEAVIATE_URL: 'http://weaviate:8080'
