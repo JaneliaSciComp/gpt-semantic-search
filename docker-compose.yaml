@@ -30,7 +30,7 @@ services:
       SLACK_TOKEN:
 
   slack-bot:
-    image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.5
+    image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.6
     restart: unless-stopped
     environment:
       WEAVIATE_URL: 'http://weaviate:8080'
@@ -43,3 +43,9 @@ services:
     # volumes:
     #   - ./slack_app.py:/app/slack_app.py:ro
     #   - ./generate_full_response.py:/app/generate_full_response.py:ro
+
+# To push an update to the docker image, run the following command and fill in the blanks:
+# docker buildx build --push --build-arg GIT_TAG=0.1.5 --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-___:0._._ -f Dockerfile_ .
+# docker buildx build --push --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.5 -f Dockerfile_slack .
+
+# docker buildx build --push --build-arg GIT_TAG=0.1.6 --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.6 -f Dockerfile_slack .

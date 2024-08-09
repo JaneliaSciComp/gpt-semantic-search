@@ -68,7 +68,8 @@ def generate_response_with_animation(text, channel, thread_ts, client):
                 response = "I'm sorry, but it's taking me longer than expected to generate a response. Could you try rephrasing your question or asking something else?"
     
     except Exception as e:
-        response = f"Oops! Something went wrong: {str(e)}"
+        response = f"Oops! Something went wrong!"
+        logger.error(e)
     
     finally:
         # Stop the animation thread

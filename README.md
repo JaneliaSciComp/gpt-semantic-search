@@ -55,6 +55,8 @@ Index a Slack export to the Janelia class in Weaviate:
 
     ./index_slack.py -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
 
+    ./index_slack.py -i ./data/slack/janelia-software/slack_to_2023-05-18 -c Janelia
+
 Add a wiki export:
 
     ./index_wiki.py -i ./data/wiki -c Janelia
