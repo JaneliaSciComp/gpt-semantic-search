@@ -126,11 +126,20 @@ class SemanticSearchService:
             if source.lower() == 'slack':
                 channel_id = extra_info['channel']
                 ts = extra_info['ts']
-                msg += f"• {source}: <{self.get_message_link(self.slack_client, channel_id, ts)}|{text}>\n"
+                # Only add new link when a slack message is found
+                try:
+                    message_link = self.get_message_link(self.slack_client, channel_id, ts)
+                    if message_link:
+                        msg += f"• {source}: <{message_link}|{text}>\n"
+                    else:
+                        logger.warning(f"Message not found for channel: {channel_id}, ts: {ts}")
+                except Exception as e:
+                    logger.warning(f"Error fetching Slack message link: {str(e)}")
             else:
                 msg += f"• {source}: <{extra_info['link']}|{extra_info['title']}>\n"
 
         return msg
+
 
 # Example usage
 if __name__ == "__main__":
