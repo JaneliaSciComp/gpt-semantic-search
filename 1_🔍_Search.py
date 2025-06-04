@@ -301,18 +301,9 @@ def survey_click(survey_response):
     create_survey_schema(weaviate_client)
 
     db_id = st.session_state.db_id
-<<<<<<< Updated upstream
     record_survey(weaviate_client, db_id, survey_response)
     logger.info(f"Logged survey response: {survey_response}")
     del st.session_state['survey']
-=======
-    if db_id:
-        record_survey(weaviate_client, db_id, survey_response)
-        logger.info(f"Logged survey response: {survey_response}")
-
-    if survey_response in ['Yes', 'No']:
-        del st.session_state['survey']
->>>>>>> Stashed changes
 
 
 if st.session_state.response and not st.session_state.survey_complete:
