@@ -18,7 +18,6 @@ streamlit==1.32.2
 
 # Slack integration
 slack-sdk==3.27.1
-# Note: slack-bolt not found in current requirements.txt
 
 # Web scraping
 scrapy==2.11.1
@@ -29,4 +28,5 @@ html2text==2024.2.26
 pandas==2.2.2
 
 # Openai Proxies Bug Fix (httpx would normally be on a higher version 0.28)
+# Link to issue: https://community.openai.com/t/error-with-openai-1-56-0-client-init-got-an-unexpected-keyword-argument-proxies/1040332/2
 httpx==0.27.2
