@@ -237,9 +237,16 @@ st.sidebar.markdown(SIDEBAR_DESC)
 
 if 'survey_complete' not in st.session_state:
     st.session_state.survey_complete = True
-
 if 'query' not in st.session_state:
     st.session_state.query = ""
+if 'response' not in st.session_state:
+    st.session_state.response = None
+if 'response_error' not in st.session_state:
+    st.session_state.response_error = False
+if 'db_id' not in st.session_state:
+    st.session_state.db_id = None
+if 'last_processed_query' not in st.session_state:
+    st.session_state.last_processed_query = ""
 
 weaviate_client = get_weaviate_client(args.weaviate_url)
 
@@ -247,28 +254,39 @@ st.title("Ask JaneliaGPT")
 query = st.text_input("What would you like to ask?", '', key="query")
 
 
-#If query is filled in (which occurs when enter key is pressed) or the submit button is clicked
-if query or st.button("Submit"):
-    logger.info(f"Query: {query}")
-    try:
-        query_engine = get_query_engine(weaviate_client)
-        slack_client = get_slack_client()
-        msg = get_response(query_engine, slack_client, query)  
-        st.session_state.db_id = record_log(weaviate_client, query, msg)
-        st.session_state.survey_complete = False
-        st.session_state.response = msg
-        st.session_state.response_error = False
-        logger.info(f"Response saved as {st.session_state.db_id}: {msg}")
-        st.success(msg)
-    except Exception as e:
-        msg = f"An error occurred: {e}"
-        st.session_state.response = msg
-        st.session_state.response_error = True
-        logger.exception(msg)
-        st.error(msg)
+# Check if current query is different than last
+is_new_query = query and query != st.session_state.last_processed_query
+
+# If query is filled in (which occurs when enter key is pressed) or the submit button is clicked
+if is_new_query or st.button("Submit"):
+    if query:  
+        logger.info(f"Query: {query}")
+        try:
+            query_engine = get_query_engine(weaviate_client)
+            slack_client = get_slack_client()
+            
+            # Use the cached response function to avoid regeneration
+            msg = get_cached_response(query_engine, slack_client, query)
+            
+            # Only create a new log entry if this is truly a new query
+            if query != st.session_state.last_processed_query:
+                st.session_state.db_id = record_log(weaviate_client, query, msg)
+                st.session_state.last_processed_query = query
+                st.session_state.survey_complete = False
+            
+            st.session_state.response = msg
+            st.session_state.response_error = False
+            logger.info(f"Response saved as {st.session_state.db_id}: {msg}")
+            st.success(msg)
+        except Exception as e:
+            msg = f"An error occurred: {e}"
+            st.session_state.response = msg
+            st.session_state.response_error = True
+            st.session_state.last_processed_query = query
+            logger.exception(msg)
+            st.error(msg)
 
 elif st.session_state.response:
-    # Re-render the saved response
     if st.session_state.response_error:
         st.error(st.session_state.response)
     else:
