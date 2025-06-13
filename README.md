@@ -104,9 +104,19 @@ To rebuild the Slack bot:
 
 To build the Slackbot container for both Linux and Mac:
 
-    export VERSION=0.1.3
+    export VERSION=latest
     docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f Dockerfile_slack .
 
+
+## Scheduled Slack Scraping
+
+### Scrape past slack messages (highly inneficent & already loaded in internal database)
+
+python slack_past_scraper.py
+
+### Set up daily automation (Currently Cronjob, update to jenkins in the future)
+
+python setup_scheduler.py
 
 ### Update requirements.txt
 
@@ -117,10 +127,14 @@ Run this in the venv:
 
 ## Future Directions
 
+* Run search when user presses the RETURN key
 * Add option to decrease `top_p` for more deterministic responses
-* Explore ways to improve the model over time
+* Ways to "correct" the model over time
     * Ability to remove (i.e. block) incorrect sources from the database
-    * Give more weight to recent data
+    * Weight more recent data more highly in the search results
+* SlackBot
 * Additional custom prompting
     * Focus answers on Janelia employees
     * Redirect to HughesHub if unable to answer a question
+
+
