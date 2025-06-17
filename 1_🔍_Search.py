@@ -224,7 +224,6 @@ def get_response(_query_engine, _slack_client, query):
     return msg
 
 
-@st.cache_data
 def get_cached_response(_query_engine, _slack_client, query):
     return get_response(_query_engine, _slack_client, query)
 
