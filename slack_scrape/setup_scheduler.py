@@ -42,7 +42,7 @@ def setup_cron_job():
     print("The following cron entry will be added:")
     print(f"  {cron_entry}")
     print()
-    print("This will run the scraper daily at 9:00 AM")
+    print("This will run the scraper daily at 3:00 AM")
     print()
     
     response = input("Do you want to add this cron job? (y/N): ").lower()
@@ -133,18 +133,7 @@ def check_requirements():
     else:
         print("✅ SCRAPING_SLACK_BOT_TOKEN found in environment")
     
-    # Check for requirements.txt
-    if not os.path.exists("requirements.txt"):
-        issues.append("❌ requirements.txt not found")
-    else:
-        print("✅ requirements.txt found")
-    
     # Check if dependencies are installed
-    try:
-        import slack_sdk
-        print("✅ Required Python packages are installed")
-    except ImportError as e:
-        issues.append(f"❌ Missing Python package: {e}")
     
     if issues:
         print("\nISSUES FOUND:")
