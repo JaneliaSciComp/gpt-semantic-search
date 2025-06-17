@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install pixi
+RUN curl -fsSL https://pixi.sh/install.sh | bash
+ENV PATH="/root/.pixi/bin:$PATH"
+
 WORKDIR /app
 
 RUN git clone --branch $GIT_TAG --depth 1 https://github.com/JaneliaSciComp/gpt-semantic-search.git .
@@ -20,8 +24,7 @@ RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm 
 
 RUN ls -la /app/pages
 
-RUN pip3 install -r requirements.txt
-RUN pip3 install slack_bolt
+RUN pixi install
 
 LABEL \
     org.opencontainers.image.title="JaneliaGPT Slack Bot" \
@@ -30,4 +33,4 @@ LABEL \
     org.opencontainers.image.licenses="BSD-3-Clause" \
     org.opencontainers.image.version=${GIT_TAG} 
 
-CMD ["python", "slack_app.py"]
+CMD ["pixi", "run", "python", "slack_app.py"]
