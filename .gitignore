@@ -169,3 +169,7 @@ cython_debug/
 **/.DS_Store
 
 /eval
+
+# pixi environments
+.pixi
+*.egg-info
