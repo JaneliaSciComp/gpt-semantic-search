@@ -10,8 +10,12 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install pixi
+RUN curl -fsSL https://pixi.sh/install.sh | bash
+ENV PATH="/root/.pixi/bin:$PATH"
+
 WORKDIR /app
-RUN git clone --branch $GIT_TAG --depth 1 https://github.com/JaneliaSciComp/gpt-semantic-search.git .
+RUN git clone --depth 1 https://github.com/JaneliaSciComp/gpt-semantic-search.git .
 
 RUN ls -la /app/pages
 
@@ -19,7 +23,9 @@ RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm 
 
 RUN ls -la /app/pages
 
-RUN pip3 install -r requirements.txt
+# Add the platform and install dependencies
+RUN pixi project platform add linux-aarch64 || true
+RUN pixi install
 
 
 LABEL \
@@ -32,5 +38,5 @@ LABEL \
 
 EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
-ENTRYPOINT streamlit run 1_🔍_Search.py --server.port=8501 --server.address=0.0.0.0 -- -w $WEAVIATE_URL
+ENTRYPOINT pixi run streamlit run 1_🔍_Search.py --server.port=8501 --server.address=0.0.0.0 -- -w $WEAVIATE_URL
 

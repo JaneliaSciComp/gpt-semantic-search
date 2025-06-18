@@ -18,7 +18,7 @@ services:
       LIMIT_RESOURCES: 'true'
 
   semantic-search:
-    image: ghcr.io/janeliascicomp/gpt-semantic-search-web:0.3.0
+    image: ghcr.io/janeliascicomp/gpt-semantic-search-web:0.3.1
     ports:
     - 8501:8501
     restart: unless-stopped
@@ -46,6 +46,5 @@ services:
 
 # To push an update to the docker image, run the following command and fill in the blanks:
 # docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-web:latest -f Dockerfile .
-# docker buildx build --push --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.5 -f Dockerfile_slack .
+# docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest -f Dockerfile_slack .
 
-# docker buildx build --push --build-arg GIT_TAG=0.1.6 --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.6 -f Dockerfile_slack .

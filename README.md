@@ -14,11 +14,14 @@ This will start both the Weaviate vector database, and the Streamlit webapp. You
 
 ### Install dependencies
 
-Create a virtualenv and install the dependencies:
+Install pixi if you haven't already:
 
-    virtualenv env
-    source env/bin/activate
-    pip install -r requirements.txt
+    curl -fsSL https://pixi.sh/install.sh | bash
+
+Install dependencies and activate environment:
+
+    pixi install
+    pixi shell
 
 ### Launch Weaviate database
 
@@ -45,34 +48,34 @@ If you are at Janelia you can get data sources from shared storage:
 
 If you want to download the latest data from each source:
 
-1. Confluence Wiki - run the `download_wiki.py` script to download the latest wiki pages to `./data/wiki`
+1. Confluence Wiki - run `pixi run python download_wiki.py` to download the latest wiki pages to `./data/wiki`
 2. Slack - export data from Slack using their [export tool](https://slack.com/help/articles/201658943-Export-your-workspace-data).
-3. Janelia.org - run the web crawling spider with `scrapy runspider spider.py`
+3. Janelia.org - run the web crawling spider with `pixi run scrapy runspider spider.py`
 
 ### Run indexing
 
 Index a Slack export to the Janelia class in Weaviate:
 
-    ./index_slack.py -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
+    pixi run ./index_slack.py -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
 
-    ./index_slack.py -i ./data/slack/janelia-software/slack_to_2023-05-18 -c Janelia
+    pixi run ./index_slack.py -i ./data/slack/janelia-software/slack_to_2023-05-18 -c Janelia
 
 Add a wiki export:
 
-    ./index_wiki.py -i ./data/wiki -c Janelia
+    pixi run ./index_wiki.py -i ./data/wiki -c Janelia
 
 Add the janelia.org web site:
 
-    ./index_web.py -i ./data/janelia.org -c Janelia
+    pixi run ./index_web.py -i ./data/janelia.org -c Janelia
 
 
 ### Start semantic search webapp
 
-To run the webapp in dev mode, use streamlit:
+To run the webapp in dev mode:
 
-    streamlit run 1_🔍_Search.py -- -w http://search.int.janelia.org:8777
+    pixi run streamlit run 1_🔍_Search.py -- -w http://localhost:8777
     
-    streamlit run No_Slack_Search.py -- -w http://search.int.janelia.org:8777
+    pixi run streamlit run No_Slack_Search.py -- -w http://localhost:8777
 
 ## Development Notes
 
@@ -112,17 +115,17 @@ To build the Slackbot container for both Linux and Mac:
 
 ### Scrape past slack messages (highly inneficent & already loaded in internal database)
 
-python slack_past_scraper.py
+pixi run python slack_past_scraper.py
 
 ### Set up daily automation (Currently Cronjob, update to jenkins in the future)
 
-python setup_scheduler.py
+pixi run python setup_scheduler.py
 
-### Update requirements.txt
+### Update dependencies
 
-Run this in the venv:
+To update pixi.toml with new dependencies, edit the file directly or use:
 
-    pip3 freeze > requirements.txt
+    pixi add <package-name>
 
 
 ## Future Directions
