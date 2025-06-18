@@ -23,6 +23,8 @@ RUN find /app/pages -maxdepth 1 -type f \( -name '5*' -o -name '4*' \) -exec rm 
 
 RUN ls -la /app/pages
 
+# Add the platform and install dependencies
+RUN pixi project platform add linux-aarch64 || true
 RUN pixi install
 
 
