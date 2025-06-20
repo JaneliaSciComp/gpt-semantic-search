@@ -137,9 +137,6 @@ def get_weaviate_client(weaviate_url):
     if not client.is_live():
         raise Exception(f"Weaviate is not live at {weaviate_url}")
 
-    if not client.is_live():
-        raise Exception(f"Weaviate is not ready at {weaviate_url}")
-
     return client
 
 
@@ -224,28 +221,28 @@ def get_response(_query_engine, _slack_client, query):
     return msg
 
 
-def get_cached_response(_query_engine, _slack_client, query):
-    return get_response(_query_engine, _slack_client, query)
+
 
 
 parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
-parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
+parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8777", help='Weaviate database URL')
 args = parser.parse_args()
 
 st.sidebar.markdown(SIDEBAR_DESC)
 
-if 'survey_complete' not in st.session_state:
-    st.session_state.survey_complete = True
-if 'query' not in st.session_state:
-    st.session_state.query = ""
-if 'response' not in st.session_state:
-    st.session_state.response = None
-if 'response_error' not in st.session_state:
-    st.session_state.response_error = False
-if 'db_id' not in st.session_state:
-    st.session_state.db_id = None
-if 'last_processed_query' not in st.session_state:
-    st.session_state.last_processed_query = ""
+# Initialize session state for search functionality
+default_states = {
+    'survey_complete': True,
+    'query': "",
+    'response': None,
+    'response_error': False,
+    'db_id': None,
+    'last_processed_query': ""
+}
+
+for key, default_value in default_states.items():
+    if key not in st.session_state:
+        st.session_state[key] = default_value
 
 weaviate_client = get_weaviate_client(args.weaviate_url)
 
@@ -265,7 +262,7 @@ if is_new_query or st.button("Submit"):
             slack_client = get_slack_client()
             
             # Use the cached response function to avoid regeneration
-            msg = get_cached_response(query_engine, slack_client, query)
+            msg = get_response(query_engine, slack_client, query)
             
             # Only create a new log entry if this is truly a new query
             if query != st.session_state.last_processed_query:
@@ -286,10 +283,8 @@ if is_new_query or st.button("Submit"):
             st.error(msg)
 
 elif st.session_state.response:
-    if st.session_state.response_error:
-        st.error(st.session_state.response)
-    else:
-        st.success(st.session_state.response)
+    display_func = st.error if st.session_state.response_error else st.success
+    display_func(st.session_state.response)
 
 
 def survey_click(survey_response):
