@@ -225,7 +225,7 @@ def get_response(_query_engine, _slack_client, query):
 
 
 parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
-parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8777", help='Weaviate database URL')
+parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
 args = parser.parse_args()
 
 st.sidebar.markdown(SIDEBAR_DESC)
