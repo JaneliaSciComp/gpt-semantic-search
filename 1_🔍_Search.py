@@ -283,8 +283,10 @@ if is_new_query or st.button("Submit"):
             st.error(msg)
 
 elif st.session_state.response:
-    display_func = st.error if st.session_state.response_error else st.success
-    display_func(st.session_state.response)
+    if st.session_state.response_error:
+        st.error(st.session_state.response)
+    else:
+        st.success(st.session_state.response)
 
 
 def survey_click(survey_response):
