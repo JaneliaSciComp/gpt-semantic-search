@@ -1,6 +1,6 @@
 import streamlit as st
 
-PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query"]
+PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query","survey_complete","response","response_error","db_id","last_processed_query"]
 DEFAULT_CLASS_PREFIX = "Janelia"
 
 @st.cache_resource
@@ -36,7 +36,16 @@ def init_state():
             "temperature": 0,
             "class_prefix": DEFAULT_CLASS_PREFIX,
             "response": None,
-            "admin_toggle": False,
+            
+
+            # Search-specific state
+            "survey_complete": True,
+            "query": "",
+            "response_error": False,
+            "db_id": None,
+            "last_processed_query": "",
+
+            "admin_toggle": True
             
         })
         #print("initialized session state: ",st.session_state)
