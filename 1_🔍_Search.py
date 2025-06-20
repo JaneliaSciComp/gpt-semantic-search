@@ -220,40 +220,19 @@ def get_response(_query_engine, _slack_client, query):
 
     return msg
 
-
-
-
-
 parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
 parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
 args = parser.parse_args()
 
-st.sidebar.markdown(SIDEBAR_DESC)
-
-# Initialize session state for search functionality
-default_states = {
-    'survey_complete': True,
-    'query': "",
-    'response': None,
-    'response_error': False,
-    'db_id': None,
-    'last_processed_query': ""
-}
-
-for key, default_value in default_states.items():
-    if key not in st.session_state:
-        st.session_state[key] = default_value
-
 weaviate_client = get_weaviate_client(args.weaviate_url)
 
+st.sidebar.markdown(SIDEBAR_DESC)
 st.title("Ask JaneliaGPT")
 query = st.text_input("What would you like to ask?", '', key="query")
 
 
-# Check if current query is different than last
 is_new_query = query and query != st.session_state.last_processed_query
 
-# If query is filled in (which occurs when enter key is pressed) or the submit button is clicked
 if is_new_query or st.button("Submit"):
     if query:  
         logger.info(f"Query: {query}")
