@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
-"""
-Daily Slack History Scraper
-Designed to run as a scheduled job (cron) to collect Slack messages daily.
-Maintains incremental state and organizes data by channel and date.
-"""
+"""Daily Slack Message Scraper - Fast message collection to file system."""
 
 import os
 import sys
-import time
 import json
+import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import List, Dict, Any, Optional, Set
+from collections import defaultdict
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 
-def setup_logging():
-    """Setup logging for the scheduled job."""
-    log_dir = "logs"
-    os.makedirs(log_dir, exist_ok=True)
-    
-    log_file = os.path.join(log_dir, f"slack_scraper_{datetime.now().strftime('%Y%m%d')}.log")
+def setup_logging() -> logging.Logger:
+    os.makedirs("logs", exist_ok=True)
+    log_file = os.path.join("logs", f"slack_daily_scraper_{datetime.now().strftime('%Y%m%d')}.log")
     
     logging.basicConfig(
         level=logging.INFO,
@@ -30,52 +25,49 @@ def setup_logging():
             logging.StreamHandler(sys.stdout)
         ]
     )
-    return logging.getLogger(__name__)
-
-
-def load_environment():
-    """Load environment variables and validate token."""
-    token = os.getenv("SCRAPING_SLACK_BOT_TOKEN")
     
-    if not token:
-        raise ValueError("SCRAPING_SLACK_BOT_TOKEN not found in environment variables. Please set it in your bash profile.")
+    return logging.getLogger("slack_daily_scraper")
+
+
+def get_last_run_timestamp() -> float:
+    state_path = os.path.join("logs", "last_scrape_timestamp.txt")
     
-    return token
-
-
-def get_state_info(state_file="last_run.txt"):
-    """Get the timestamp of the last successful run."""
-    if os.path.exists(state_file):
+    if os.path.exists(state_path):
         try:
-            with open(state_file, 'r') as f:
-                last_ts = float(f.read().strip())
-                return last_ts
-        except (ValueError, IOError) as e:
-            logging.warning(f"Could not read state file: {e}. Starting from 24 hours ago.")
-            return time.time() - 86400  # 24 hours ago as fallback
+            with open(state_path, 'r') as f:
+                return float(f.read().strip())
+        except (ValueError, IOError):
+            return time.time() - 86400
     else:
-        logging.info("No state file found. Starting from 24 hours ago.")
-        return time.time() - 86400  # 24 hours ago for first run
+        return time.time() - 86400
 
 
-def update_state(new_ts, state_file="last_run.txt"):
-    """Update the state file with the current run timestamp."""
-    try:
-        with open(state_file, 'w') as f:
-            f.write(str(new_ts))
-        logging.info(f"State updated to timestamp: {new_ts}")
-    except IOError as e:
-        logging.error(f"Failed to update state file: {e}")
-
-
-def get_channels(client, logger):
-    """Fetch all public channels."""
-    logger.info("Fetching channel list...")
-    channels = []
-    cursor = None
+def update_last_run_timestamp(timestamp: float) -> None:
+    os.makedirs("logs", exist_ok=True)
+    state_path = os.path.join("logs", "last_scrape_timestamp.txt")
     
-    while True:
-        try:
+    try:
+        with open(state_path, 'w') as f:
+            f.write(str(timestamp))
+    except IOError as e:
+        logging.error(f"Failed to update state: {e}")
+
+
+def get_workspace_info(client: WebClient) -> str:
+    try:
+        auth_resp = client.auth_test()
+        workspace_name = auth_resp.get("team", "unknown-workspace")
+        return workspace_name.lower().replace(" ", "-")
+    except Exception:
+        return "unknown-workspace"
+
+
+def get_all_channels(client: WebClient, logger: logging.Logger) -> List[Dict[str, Any]]:
+    try:
+        channels = []
+        cursor = None
+        
+        while True:
             resp = client.conversations_list(
                 types="public_channel", 
                 exclude_archived=True, 
@@ -84,206 +76,225 @@ def get_channels(client, logger):
             )
             channels.extend(resp["channels"])
             cursor = resp.get("response_metadata", {}).get("next_cursor")
-            
             if not cursor:
                 break
-                
-        except SlackApiError as e:
-            logger.error(f"Failed to fetch channels: {e}")
+        
+        logger.info(f"Found {len(channels)} channels")
+        return channels
+        
+    except SlackApiError as e:
+        if e.response["error"] == "missing_scope":
+            return discover_channels_from_data(logger)
+        else:
             raise
+
+
+def get_specific_channels(channel_names: List[str]) -> List[Dict[str, Any]]:
+    return [{"id": name, "name": name} for name in channel_names]
+
+
+def discover_channels_from_data(logger: logging.Logger) -> List[Dict[str, Any]]:
+    discovered_channels: Set[str] = set()
+    slack_data_path = "../data/slack"
     
-    logger.info(f"Found {len(channels)} channels")
+    if os.path.exists(slack_data_path):
+        try:
+            for workspace_dir in os.listdir(slack_data_path):
+                workspace_path = os.path.join(slack_data_path, workspace_dir)
+                if os.path.isdir(workspace_path):
+                    for date_dir in os.listdir(workspace_path):
+                        date_path = os.path.join(workspace_path, date_dir)
+                        if os.path.isdir(date_path) and date_dir.startswith("slack_to_"):
+                            for channel_dir in os.listdir(date_path):
+                                channel_path = os.path.join(date_path, channel_dir)
+                                if (os.path.isdir(channel_path) and 
+                                    not channel_dir.endswith('.json')):
+                                    discovered_channels.add(channel_dir)
+        except Exception:
+            pass
+    
+    channels = [{"id": name, "name": name} for name in sorted(discovered_channels)]
+    logger.info(f"Discovered {len(channels)} channels from data")
     return channels
 
 
-def fetch_channel_messages(client, channel_id, channel_name, oldest_ts, logger):
-    """Fetch messages from a specific channel since the given timestamp."""
-    all_msgs = []
+def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str, 
+                         oldest_ts: float, logger: logging.Logger) -> List[Dict[str, Any]]:
+    all_messages = []
+    cursor = None
     
-    try:
-        result = client.conversations_history(
-            channel=channel_id, 
-            oldest=oldest_ts, 
-            limit=200
-        )
-        
-    except SlackApiError as e:
-        if e.response.status_code == 429:
-            # Handle rate limit
-            retry_after = int(e.response.headers.get("Retry-After", 1))
-            logger.warning(f"Rate limited for channel {channel_name}. Waiting {retry_after + 1} seconds...")
-            time.sleep(retry_after + 1)
-            result = client.conversations_history(
-                channel=channel_id, 
-                oldest=oldest_ts, 
-                limit=200
-            )
-        elif e.response["error"] == "not_in_channel":
-            logger.warning(f"Skipping channel {channel_name} - bot not in channel")
-            return []
-        else:
-            logger.error(f"API error for channel {channel_name}: {e}")
+    logger.debug(f"  Fetching messages for {channel_name} since {datetime.fromtimestamp(oldest_ts)}")
+    
+    while True:
+        try:
+            params = {
+                "channel": channel_id,
+                "limit": 200,
+                "oldest": str(oldest_ts),
+                "inclusive": True
+            }
+            if cursor:
+                params["cursor"] = cursor
+            
+            logger.debug(f"  API call params: {params}")
+            result = client.conversations_history(**params)
+            messages = result["messages"]
+            
+            logger.debug(f"  API returned {len(messages)} messages")
+            
+            if not messages:
+                break
+            
+            all_messages.extend(messages)
+            
+            if not result.get("has_more", False):
+                break
+            
+            cursor = result.get("response_metadata", {}).get("next_cursor")
+            if not cursor:
+                break
+            
+            time.sleep(1.1)
+            
+        except SlackApiError as e:
+            if e.response.status_code == 429:
+                retry_after = int(e.response.headers.get("Retry-After", 60))
+                time.sleep(retry_after + 5)
+                continue
+            elif e.response["error"] in ["channel_not_found", "not_in_channel"]:
+                break
+            else:
+                raise
+        except Exception as e:
+            logger.error(f"Error for channel {channel_name}: {e}")
             raise
     
-    all_msgs.extend(result["messages"])
-    
-    # Handle pagination
-    while result.get("has_more"):
-        cursor = result["response_metadata"]["next_cursor"]
-        try:
-            result = client.conversations_history(
-                channel=channel_id, 
-                oldest=oldest_ts, 
-                limit=200, 
-                cursor=cursor
-            )
-            all_msgs.extend(result["messages"])
-        except SlackApiError as e:
-            logger.error(f"Error during pagination for channel {channel_name}: {e}")
-            break
-    
-    return all_msgs
+    return all_messages
 
 
-def get_workspace_info(client, logger):
-    """Get workspace information for folder organization."""
-    try:
-        auth_resp = client.auth_test()
-        workspace_name = auth_resp.get("team", "unknown-workspace")
-        # Clean workspace name for use in folder paths
-        workspace_name = workspace_name.lower().replace(" ", "-")
-        return workspace_name
-    except Exception as e:
-        logger.warning(f"Could not get workspace info: {e}. Using 'unknown-workspace'")
-        return "unknown-workspace"
-
-
-def save_messages(messages, channel_name, workspace_name, logger):
-    """Save messages to the date-based folder structure matching existing pattern."""
-    if not messages:
-        return
-    
-    # Get today's date for the slack_to folder
-    today_date = datetime.now().strftime("%Y-%m-%d")
-    
-    # Create the folder structure: data/slack/{workspace}/slack_to_{today}/{channel}/
-    base_dir = f"./../data/slack/{workspace_name}/slack_to_{today_date}/{channel_name}"
-    os.makedirs(base_dir, exist_ok=True)
-    
-    # Group messages by date based on their timestamp
-    messages_by_date = {}
+def organize_messages_by_date(messages: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    messages_by_date = defaultdict(list)
     
     for msg in messages:
-        # Convert Slack timestamp to date
-        msg_timestamp = float(msg.get("ts", 0))
-        msg_date = datetime.fromtimestamp(msg_timestamp).strftime("%Y-%m-%d")
-        
-        if msg_date not in messages_by_date:
-            messages_by_date[msg_date] = []
-        messages_by_date[msg_date].append(msg)
+        try:
+            msg_timestamp = float(msg.get("ts", 0))
+            msg_date = datetime.fromtimestamp(msg_timestamp).strftime("%Y-%m-%d")
+            messages_by_date[msg_date].append(msg)
+        except (ValueError, OSError):
+            continue
     
-    # Save each date's messages to its own file
-    saved_count = 0
+    return messages_by_date
+
+
+def save_messages(messages: List[Dict[str, Any]], channel_name: str, 
+                 workspace_name: str, logger: logging.Logger) -> int:
+    if not messages:
+        return 0
+    
+    data_base_path = "../data/slack"
+    messages_by_date = organize_messages_by_date(messages)
+    total_saved = 0
+    
     for date_str, date_messages in messages_by_date.items():
-        out_path = f"{base_dir}/{date_str}.json"
+        base_dir = os.path.join(
+            data_base_path, 
+            workspace_name, 
+            f"slack_to_{date_str}", 
+            channel_name
+        )
+        os.makedirs(base_dir, exist_ok=True)
         
-        # If file exists, load existing messages and merge
+        out_path = os.path.join(base_dir, f"{date_str}.json")
+        
         existing_messages = []
         if os.path.exists(out_path):
             try:
                 with open(out_path, 'r') as f:
                     existing_messages = json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.warning(f"Could not read existing file {out_path}: {e}")
+            except (json.JSONDecodeError, IOError):
+                pass
         
-        # Merge new messages with existing ones (avoid duplicates by timestamp)
         existing_ts = {msg.get("ts") for msg in existing_messages}
         new_messages = [msg for msg in date_messages if msg.get("ts") not in existing_ts]
         
+        logger.debug(f"  {channel_name} {date_str}: {len(existing_messages)} existing, {len(date_messages)} fetched, {len(new_messages)} new")
+        
         if new_messages:
             all_messages = existing_messages + new_messages
-            # Sort by timestamp
             all_messages.sort(key=lambda x: float(x.get("ts", 0)))
             
             try:
                 with open(out_path, 'w') as f:
                     json.dump(all_messages, f, indent=2)
-                logger.info(f"Saved {len(new_messages)} new messages to {out_path}")
-                saved_count += len(new_messages)
+                total_saved += len(new_messages)
+                logger.info(f"  Saved {len(new_messages)} new messages for {channel_name} on {date_str}")
             except IOError as e:
-                logger.error(f"Failed to save messages to {out_path}: {e}")
+                logger.error(f"Failed to save to {out_path}: {e}")
+        else:
+            logger.debug(f"  No new messages for {channel_name} on {date_str} (all {len(date_messages)} already exist)")
     
-    return saved_count
+    return total_saved
 
 
 def main():
-    """Main function to run the daily Slack scraper."""
-    logger = setup_logging()
-    logger.info("Starting daily Slack message scraper...")
-    
     try:
-        # Load environment and setup
-        token = load_environment()
-        client = WebClient(token=token)
+        logger = setup_logging()
         
-        # Get workspace info for folder structure
-        workspace_name = get_workspace_info(client, logger)
-        logger.info(f"Workspace: {workspace_name}")
+        slack_bot_token = os.getenv("SCRAPING_SLACK_BOT_TOKEN", "")
+        if not slack_bot_token:
+            logger.error("SCRAPING_SLACK_BOT_TOKEN not found in environment variables")
+            return 1
         
-        # Get state info
-        last_ts = get_state_info()
-        current_ts = time.time()
+        client = WebClient(token=slack_bot_token)
         
-        logger.info(f"Fetching messages since {datetime.fromtimestamp(last_ts).strftime('%Y-%m-%d %H:%M:%S')}")
+        workspace_name = get_workspace_info(client)
         
-        # Fetch all public channels
-        channels = get_channels(client, logger)
+        # Get today's date range (00:00:00 to 23:59:59)
+        now = datetime.now()
+        start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        oldest_ts = start_of_today.timestamp()
+        
+        logger.info(f"Scraping messages for {now.strftime('%Y-%m-%d')} (since {start_of_today.strftime('%H:%M:%S')})")
+        
+        slack_channels = os.getenv("SLACK_CHANNELS")
+        if slack_channels:
+            channel_names = [name.strip() for name in slack_channels.split(",")]
+            channels = get_specific_channels(channel_names)
+        else:
+            channels = get_all_channels(client, logger)
         
         if not channels:
-            logger.warning("No channels found! Check bot permissions.")
-            return
+            logger.warning("No channels found")
+            return 0
         
-        # Process each channel
-        total_messages = 0
-        processed_channels = 0
-        skipped_channels = []
-        
-        for channel in channels:
-            channel_id = channel["id"]
-            channel_name = channel["name"]
+        total_saved = 0
+        for i, channel in enumerate(channels, 1):
+            logger.info(f"[{i}/{len(channels)}] {channel['name']}")
             
-            logger.info(f"Processing channel: {channel_name}")
+            messages = fetch_channel_messages(
+                client, channel["id"], channel["name"], oldest_ts, logger
+            )
             
-            messages = fetch_channel_messages(client, channel_id, channel_name, last_ts, logger)
+            logger.debug(f"  Fetched {len(messages)} messages from {channel['name']}")
             
             if messages:
-                saved_count = save_messages(messages, channel_name, workspace_name, logger)
-                total_messages += saved_count
-                processed_channels += 1
-                logger.info(f"Channel {channel_name}: {len(messages)} fetched, {saved_count} new messages saved")
+                saved = save_messages(messages, channel["name"], workspace_name, logger)
+                total_saved += saved
+                logger.info(f"  Saved {saved} messages")
             else:
-                logger.info(f"Channel {channel_name}: No new messages")
+                logger.info(f"  No messages found")
             
-            # Small delay to be respectful to API
-            time.sleep(0.1)
+            time.sleep(1)
         
-        # Update state
-        update_state(current_ts)
-        
-        logger.info("="*50)
-        logger.info(f"Scraping completed successfully!")
-        logger.info(f"Total channels found: {len(channels)}")
-        logger.info(f"Channels with new messages: {processed_channels}")
-        logger.info(f"Total new messages saved: {total_messages}")
-        logger.info(f"Data saved to: data/slack/{workspace_name}/slack_to_{datetime.now().strftime('%Y-%m-%d')}/")
-        logger.info("="*50)
+        # Note: Using date-based collection, no need to track last run timestamp
+        logger.info(f"Completed - saved {total_saved} total messages")
         
     except Exception as e:
-        logger.error(f"Scraper failed with error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        sys.exit(1)
+        logging.error(f"Scraper failed: {e}")
+        return 1
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())
