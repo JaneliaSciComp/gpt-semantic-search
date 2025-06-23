@@ -111,15 +111,94 @@ To build the Slackbot container for both Linux and Mac:
     docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f Dockerfile_slack .
 
 
-## Scheduled Slack Scraping
+## Slack Scraping
 
-### Scrape past slack messages (highly inneficent & already loaded in internal database)
+### Required Environment Variable
 
-pixi run python slack_past_scraper.py
+For Slack scraping, you need a `SCRAPING_SLACK_USER_TOKEN` environment variable. Add this to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`):
 
-### Set up daily automation (Currently Cronjob, update to jenkins in the future)
+    export SCRAPING_SLACK_USER_TOKEN="xoxp-your-user-token-here"
 
-pixi run python setup_scheduler.py
+### One-time historical scraping (for initial setup)
+
+    cd slack_scrape
+    pixi run python slack_past_scraper.py
+
+### Daily automated scraping and indexing (recommended)
+
+The system uses a hybrid approach with separate processes for scraping and indexing:
+
+1. **Daily Scraper** (midnight): Fast, reliable message collection
+2. **Daily Indexer** (3 AM): Process and index messages into Weaviate
+
+#### Setting up the cron jobs
+
+1. **Open your crontab for editing:**
+   ```bash
+   crontab -e
+   ```
+
+2. **Add both cron jobs** (adjust paths to match your installation):
+   ```bash
+   # Daily scraping at midnight
+   0 * * * * cd /path/to/gpt-semantic-search/slack_scrape && pixi run python slack_daily_scraper.py >> logs/cron.log 2>&1
+   
+   # Daily indexing at 1 AM
+   0 1 * * * cd /path/to/gpt-semantic-search/slack_scrape && pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
+   ```
+
+3. **Find your correct paths:**
+   - Project path: `pwd` (when in the project directory)
+   - Pixi path: `which pixi`
+
+4. **Example with full paths:**
+   ```bash
+   # Daily scraping at midnight
+   0 0 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_scraper.py >> logs/cron.log 2>&1
+   
+   # Daily indexing at 3 AM
+   0 3 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
+   ```
+
+#### How it works
+
+**Daily Scraper (12:00 AM):**
+- Discovers all accessible public channels automatically
+- Fetches messages from the last 24 hours (or since last run)
+- Saves data to `../data/slack/{workspace}/`
+- Fast and reliable (2-5 minutes)
+- Logs to `logs/slack_daily_scraper_YYYYMMDD.log`
+
+**Daily Indexer (3:00 AM):**
+- Processes yesterday's scraped messages
+- Creates searchable documents
+- Indexes them into Weaviate database
+- Makes messages searchable within 3-6 hours
+- Logs to `logs/slack_daily_indexer_YYYYMMDD.log`
+
+#### Configuration options
+
+**Specify specific channels** (optional):
+```bash
+export SLACK_CHANNELS="general,development,support"
+```
+
+**Enable/disable indexing:**
+```bash
+export ENABLE_INDEXING="true"              # Enable automatic indexing
+export WEAVIATE_URL="http://localhost:8777"  # Optional, defaults to this
+export CLASS_PREFIX="Janelia"               # Optional, defaults to this
+```
+
+**Required for indexing:**
+- `OPENAI_API_KEY` must be set for embedding generation
+
+#### Benefits of hybrid approach
+
+- **Reliability**: Scraping and indexing failures don't affect each other
+- **Speed**: Daily scraping completes quickly (no embedding overhead)
+- **Efficiency**: Better API usage and error recovery
+- **Availability**: Messages searchable within 3-6 hours
 
 ### Update dependencies
 
