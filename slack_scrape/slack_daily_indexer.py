@@ -1,345 +1,338 @@
-#!/usr/bin/env python3
-"""Daily Slack Message Indexer - Process scraped messages into Weaviate."""
+#!/usr/bin/env python
 
-import os
-import sys
-import json
+import argparse
 import re
+import sys
+import os
+import glob
+import json
 import logging
+import warnings
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Tuple
 from decimal import Decimal
-from collections import defaultdict
 
-try:
-    from llama_index.core import Document
-    LLAMA_INDEX_AVAILABLE = True
-except ImportError:
-    LLAMA_INDEX_AVAILABLE = False
+from llama_index.core import Document
 
-try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from weaviate_indexer import Indexer
-    INDEXER_AVAILABLE = True
-except ImportError:
-    INDEXER_AVAILABLE = False
+# Add parent directory to path to import weaviate_indexer
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from weaviate_indexer import Indexer
 
-def setup_logging() -> logging.Logger:
-    os.makedirs("logs", exist_ok=True)
-    log_file = os.path.join("logs", f"slack_daily_indexer_{datetime.now().strftime('%Y%m%d')}.log")
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
-    
-    return logging.getLogger("slack_daily_indexer")
+warnings.simplefilter("ignore", ResourceWarning)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Constants - exactly same as index_slack.py
+SOURCE = "Slack"
+DOCUMENT_PAUSE_SECS = 300
+IGNORED_SUBTYPES = set(['channel_join','channel_leave','bot_message'])
 
 
-def get_indexing_state() -> Dict[str, float]:
-    state_file = os.path.join("logs", "last_indexing_state.json")
-    
-    if not os.path.exists(state_file):
-        return {}
-    
-    with open(state_file, 'r') as f:
-        return json.load(f)
+def get(dictionary, key):
+    """ Get the key out of the dictionary, if it exists. If not, return None.
+    """
+    if dictionary and key in dictionary:
+        return dictionary[key]
+    return None
 
 
-def update_indexing_state(date_str: str, timestamp: float) -> None:
-    os.makedirs("logs", exist_ok=True)
-    state_file = os.path.join("logs", "last_indexing_state.json")
-    
-    state = get_indexing_state()
-    state[date_str] = timestamp
-    
-    with open(state_file, 'w') as f:
-        json.dump(state, f, indent=2)
+def fix_text(text):
+    """ Standard transformations on text like squashing multiple newlines.
+    """
+    text = re.sub("\n+", "\n", text)
+    return text
 
 
-def get_messages_for_indexing(workspace_name: str, start_date: str) -> Dict[str, List[Dict[str, Any]]]:
-    data_base_path = "../data/slack"
-    workspace_path = os.path.join(data_base_path, workspace_name)
-    all_messages = defaultdict(list)
-    
-    if not os.path.exists(workspace_path):
-        return all_messages
-    
-    for date_dir in os.listdir(workspace_path):
-        if not date_dir.startswith("slack_to_"):
-            continue
-            
-        date_str = date_dir.replace("slack_to_", "")
-        if date_str < start_date:
-            continue
+class DailySlackLoader():
+    """Modified version of ArchivedSlackLoader for daily scraped data."""
+
+    def __init__(self, data_path, target_date=None, debug=False):
+        self.data_path = data_path
+        self.target_date = target_date or datetime.now().strftime("%Y-%m-%d")
+        self.id2username = {}
+        self.id2realname = {}
+        self.channel2id = {}
+        self.debug = debug
+
+        # Load users.json and channels.json (created by slack_daily_scraper)
+        for user in self.get_users():
+            id = user['id']
+            self.id2username[id] = user['name']
+            self.id2realname[id] = user['profile']['real_name']
+
+        logger.info(f"Loaded {len(self.id2username)} users")
+        for channel in self.get_channels():
+            logger.debug(f"{channel['id']}: {channel['name']}")
+            self.channel2id[channel['name']] = channel['id']
         
-        date_path = os.path.join(workspace_path, date_dir)
-        if not os.path.isdir(date_path):
-            continue
-        
-        for channel_dir in os.listdir(date_path):
-            channel_path = os.path.join(date_path, channel_dir)
-            if not os.path.isdir(channel_path):
-                continue
+        logger.info(f"Loaded {len(self.channel2id)} channels")
+
+
+    def get_users(self):
+        """ Generator which returns users from the users.json file.
+        """
+        users_file = f"{self.data_path}/users.json"
+        if not os.path.exists(users_file):
+            logger.warning(f"No users.json found at {users_file}")
+            return
             
-            message_file = os.path.join(channel_path, f"{date_str}.json")
-            if os.path.exists(message_file):
-                with open(message_file, 'r') as f:
-                    messages = json.load(f)
-                    all_messages[channel_dir].extend(messages)
-    
-    return all_messages
+        with open(users_file, 'r') as f:
+            users = json.load(f)
+            for user in users:
+                yield user
 
 
-def parse_message_for_indexing(message: Dict[str, Any], channel_name: str) -> Tuple[Optional[Decimal], Optional[str]]:
-    IGNORED_SUBTYPES = {'channel_join', 'channel_leave', 'bot_message'}
-    
-    if message.get('type') != 'message':
-        return None, None
-    
-    if 'subtype' in message and message.get('subtype') in IGNORED_SUBTYPES:
-        return None, None
-    
-    ts = message['ts']
-    thread_ts = message.get('thread_ts') or ts
-    thread_id = Decimal(thread_ts)
-
-    user_id = message.get('user', 'unknown')
-    user_profile = message.get('user_profile', {})
-    realname = user_profile.get('display_name', user_id)
-    
-    # Extract text content
-    text = ""
-    if 'blocks' in message:
-        for block in message['blocks']:
-            if block.get('type') == 'rich_text':
-                for element in block.get('elements', []):
-                    for subelement in element.get('elements', []):
-                        if subelement.get('type') == 'text':
-                            text += subelement.get('text', '')
-    else:
-        text = message.get('text', '')
-    
-    text_msg = re.sub(r"\n+", "\n", text)
-    
-    # Add attachment content
-    if 'attachments' in message:
-        for attachment in message['attachments']:
-            if 'title' in attachment: 
-                clean_title = re.sub(r'\n+', '\n', attachment['title'])
-                text_msg += f"\n{clean_title}"
-            if 'text' in attachment: 
-                clean_text = re.sub(r'\n+', '\n', attachment['text'])
-                text_msg += f"\n{clean_text}"
-    
-    # Add file names
-    if 'files' in message:
-        for file in message['files']:
-            if 'name' in file:
-                text_msg += f"\n<{file['name']}>"
-    
-    # Add reactions
-    if 'reactions' in message:
-        text_msg += f"\nOthers reacted to the previous message with "
-        reaction_descriptions = [
-            f"{reaction['name']} a total of {reaction['count']} times" 
-            for reaction in message['reactions']
-        ]
-        text_msg += ", and with ".join(reaction_descriptions) + "."
-
-    return thread_id, f"{realname} said: {text_msg}\n"
+    def get_channels(self):
+        """ Generator which returns channels from the channels.json file.
+        """
+        channels_file = f"{self.data_path}/channels.json"
+        if not os.path.exists(channels_file):
+            logger.warning(f"No channels.json found at {channels_file}")
+            return
+            
+        with open(channels_file, 'r') as f:
+            channels = json.load(f)
+            for channel in channels:
+                yield channel
 
 
-def process_messages_to_documents(messages: List[Dict[str, Any]], channel_name: str) -> List[Any]:
-    if not LLAMA_INDEX_AVAILABLE or not messages:
-        return []
-    
-    DOCUMENT_PAUSE_SECS = 300
-    SOURCE = "slack"
-    
-    # Group messages by thread
-    message_threads = {}
-    for message in messages:
-        thread_id, text_msg = parse_message_for_indexing(message, channel_name)
-        if thread_id and text_msg:
-            if thread_id not in message_threads:
-                message_threads[thread_id] = []
-            message_threads[thread_id].append(text_msg)
-
-    if not message_threads:
-        return []
-    
-    # Create documents with pauses between distant threads
-    documents = []
-    prev_id = Decimal(0)
-    doc_text = ""
-    start_ts = None
-
-    for thread_id in sorted(message_threads.keys()):
-        if doc_text and thread_id - prev_id > DOCUMENT_PAUSE_SECS:
-            documents.append(Document(
-                text=doc_text, 
-                extra_info={
-                    "source": SOURCE, 
-                    "channel": channel_name, 
-                    "ts": start_ts,
-                    "title": f"Slack conversation in #{channel_name}",
-                    "link": f"https://slack.com/channels/{channel_name}"
-                }
-            ))
-            doc_text = ""
-            start_ts = None
-
-        if not start_ts:
-            start_ts = str(thread_id)
-
-        doc_text += "".join(message_threads[thread_id])
-        prev_id = thread_id
-
-    if doc_text:
-        documents.append(Document(
-            text=doc_text, 
-            extra_info={
-                "source": SOURCE, 
-                "channel": channel_name, 
-                "ts": start_ts,
-                "title": f"Slack conversation in #{channel_name}",
-                "link": f"https://slack.com/channels/{channel_name}"
-            }
-        ))
-
-    return documents
+    def get_messages(self, channel_name):
+        """ Generator which returns messages from the json files in the given channel directory.
+        Only processes messages from the target date.
+        """
+        # Look for the specific date file in the channel directory
+        target_file = f"{self.data_path}/{channel_name}/{self.target_date}.json"
+        
+        if os.path.exists(target_file):
+            logger.debug(f"Processing messages from {target_file}")
+            with open(target_file, 'r') as f:
+                for message in json.load(f):
+                    yield message
+        else:
+            logger.debug(f"No messages file found for {channel_name} on {self.target_date}")
 
 
-def index_documents(documents: List[Any], weaviate_url: str, class_prefix: str) -> bool:
-    if not INDEXER_AVAILABLE or not documents:
-        return not documents
-    
-    indexer = Indexer(
-        weaviate_url=weaviate_url,
-        class_prefix=class_prefix,
-        delete_database=False
-    )
-    
-    indexer.index(documents)
-    return True
+    def extract_text(self, elements):
+        """ Recursively parse an 'elements' structure, 
+            converting user elements to their real names.
+        """
+        text = ''
+        for element in elements:
+            if 'elements' in element:
+                text += self.extract_text(element['elements'])
+            el_type = get(element, 'type')
+            if el_type == 'text':
+                if get(get(element, 'style'), 'code'): text += '`'
+                text += element['text']
+                if get(get(element, 'style'), 'code'): text += '`'
+            elif el_type == 'link':
+                text += get(element, 'url')
+            elif el_type == 'rich_text_preformatted':
+                text += "\n"
+            elif el_type == 'user':
+                user_id = element['user_id']
+                try:
+                    text += self.id2realname[user_id]
+                except KeyError:
+                    logger.error(f"No such user '{user_id}'")
+                    text += user_id
+
+        return text
+
+    def parse_message(self, message):
+        """ Parse a message into text that will be read by a GPT model. 
+        """
+        thread_id, text_msg = None, None
+        if get(message, 'type') == 'message':
+            if 'subtype' in message and get(message, 'subtype') in IGNORED_SUBTYPES:
+                pass
+            else:
+                ts = message['ts']
+                thread_ts = get(message, 'thread_ts') or ts
+                thread_id = Decimal(thread_ts)
+
+                # Translate user - handle both formats (scraped vs export)
+                user_id = message.get('user', 'unknown')
+                try:
+                    realname = self.id2realname[user_id]
+                except KeyError:
+                    try:
+                        realname = message['user_profile']['display_name']
+                    except KeyError:
+                        realname = user_id
+                    
+                if 'blocks' in message:
+                    text = self.extract_text(message['blocks'])
+                else:
+                    text = message.get('text', '')
+                
+                # Handle user mentions in text
+                if user_id in self.id2realname:
+                    text_msg = re.sub("<@(.*?)>", lambda m: self.id2realname.get(m.group(1), m.group(1)), text)
+                else:
+                    text_msg = text
+                text_msg = fix_text(text_msg)
+
+                if 'attachments' in message:
+                    for attachment in message['attachments']:
+                        if 'title' in attachment: text_msg += f"\n{fix_text(attachment['title'])}"
+                        if 'text' in attachment: text_msg += f"\n{fix_text(attachment['text'])}"
+                        
+                if 'files' in message:
+                    for file in message['files']:
+                        if 'name' in file:
+                            # There are several cases where a file doesn't have a name:
+                            # 1) The file has been deleted (mode=tombstone)
+                            # 2) We have no access (file_access=access_denied)
+                            text_msg += f"\n<{file['name']}>"
+
+                if 'reactions' in message:
+                    text_msg += f"\nOthers reacted to the previous message with "
+                    r = [f"{reaction['name']} a total of {reaction['count']} times" for reaction in message['reactions']]
+                    text_msg += ", and with ".join(r) + "."
+
+                text_msg = f"{realname} said: {text_msg}\n"
+        
+        return thread_id, text_msg
 
 
-def test_weaviate_connection(weaviate_url: str) -> bool:
-    if not INDEXER_AVAILABLE:
-        return False
-    
-    import weaviate
-    
-    client = weaviate.Client(weaviate_url)
-    return client.is_live() and client.is_ready()
+    def create_document(self, channel_id, ts, doc_text):
+        logger.info("--------------------------------------------------")
+        logger.info(f"Document[channel={channel_id},ts={ts}]")
+        logger.debug(doc_text)
+        return Document(text=doc_text, extra_info={"source": SOURCE, "channel": channel_id, "ts": ts})
 
 
-def get_document_count(weaviate_url: str, class_prefix: str) -> Optional[int]:
-    if not INDEXER_AVAILABLE:
+    def load_documents(self, channel_name):
+        channel_id = self.channel2id.get(channel_name, channel_name)  # Fallback to channel_name if not found
+        messages = {}
+        for message in self.get_messages(channel_name):
+            try:
+                thread_id, text_msg = self.parse_message(message)
+            except Exception as e:
+                logger.error(f"Error parsing message: {message}")
+                raise e
+                
+            if thread_id and text_msg:
+                if thread_id not in messages:
+                    messages[thread_id] = []
+                messages[thread_id].append(text_msg)
+
+        if not messages:
+            logger.debug(f"No messages found for {channel_name} on {self.target_date}")
+            return []
+
+        prev_id = Decimal(0)
+        documents = []
+        doc_text = ""
+        start_ts = None
+
+        for thread_id in sorted(list(messages.keys())):
+
+            # Create a new document whenever messages are separated by a longer pause
+            if doc_text and thread_id-prev_id > DOCUMENT_PAUSE_SECS:
+                doc = self.create_document(channel_id, start_ts, doc_text)
+                documents.append(doc)
+                doc_text = ""
+                start_ts = None
+
+            logger.debug(thread_id)
+
+            # Starting timestamp for the next document
+            if not start_ts:
+                start_ts = str(thread_id)
+
+            # Add all messages from the current thread
+            for text_msg in messages[thread_id]:
+                doc_text += text_msg
+
+            prev_id = thread_id
+
+        # Add final document
+        if doc_text:  # Only add if there's content
+            doc = self.create_document(channel_id, start_ts, doc_text)
+            documents.append(doc)
+
+        return documents
+
+
+    def load_all_documents(self):
+        documents = []
+        for channel_name in self.channel2id.keys():
+            channel_docs = self.load_documents(channel_name)
+            if channel_docs:
+                logger.info(f"Found {len(channel_docs)} documents in {channel_name} for {self.target_date}")
+                documents.extend(channel_docs)
+        return documents
+
+
+def find_export_directory_for_date(target_date, data_base_path="../data/slack"):
+    """Find the export directory for a specific date."""
+    if not os.path.exists(data_base_path):
         return None
     
-    import weaviate
+    target_dir_name = f"slack_to_{target_date}"
     
-    client = weaviate.Client(weaviate_url)
-    class_name = f"{class_prefix}_Node"
+    for workspace_dir in os.listdir(data_base_path):
+        workspace_path = os.path.join(data_base_path, workspace_dir)
+        if not os.path.isdir(workspace_path):
+            continue
+            
+        export_path = os.path.join(workspace_path, target_dir_name)
+        
+        # Check if this directory exists and has required metadata files
+        if (os.path.exists(export_path) and
+            os.path.exists(os.path.join(export_path, "users.json")) and 
+            os.path.exists(os.path.join(export_path, "channels.json"))):
+            return export_path
     
-    result = client.query.aggregate(class_name).with_meta_count().do()
-    
-    if 'data' in result and 'Aggregate' in result['data']:
-        aggregate_data = result['data']['Aggregate']
-        if class_name in aggregate_data:
-            meta_data = aggregate_data[class_name]
-            if meta_data and len(meta_data) > 0 and 'meta' in meta_data[0]:
-                return meta_data[0]['meta']['count']
-    
-    return 0
+    return None
 
 
 def main():
-    logger = setup_logging()
+    parser = argparse.ArgumentParser(description='Daily Slack indexer - processes scraped Slack data for a specific date into Weaviate')
+    parser.add_argument('-i', '--input', type=str, help='Path to extracted Slack export directory (optional, will auto-discover if not provided)')
+    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8777", help='Weaviate database URL')
+    parser.add_argument('-c', '--class-prefix', type=str, default="Janelia", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
+    parser.add_argument('-r', '--remove-existing', default=False, action=argparse.BooleanOptionalAction, help='Remove existing "<prefix>_Node" class in Weaviate before starting.')
+    parser.add_argument('-d', '--debug', default=False, action=argparse.BooleanOptionalAction, help='Print debugging information, such as the message content.')
+    parser.add_argument('--date', type=str, help='Target date to process (YYYY-MM-DD format, defaults to today)')
+    args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
+    # Determine target date
+    target_date = args.date if args.date else datetime.now().strftime("%Y-%m-%d")
+    logger.info(f"Processing Slack messages for date: {target_date}")
+
+    # Find or use export directory
+    if args.input:
+        export_dir = args.input
+    else:
+        export_dir = find_export_directory_for_date(target_date)
     
-    if not os.getenv("SCRAPING_SLACK_BOT_TOKEN"):
-        logger.error("SCRAPING_SLACK_BOT_TOKEN not found in environment variables")
-        return 1
+    if not export_dir:
+        logger.error(f"No valid Slack export directory found for {target_date}. "
+                    f"Use -i to specify manually or ensure slack_daily_scraper has run for that date.")
+        sys.exit(1)
     
-    enable_indexing = os.getenv("ENABLE_INDEXING", "").lower() == "true"
-    openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    logger.info(f"Using export directory: {export_dir}")
     
-    if not enable_indexing or not openai_api_key:
-        logger.info("Indexing disabled or requirements not met")
-        return 0
-    
-    weaviate_url = os.getenv("WEAVIATE_URL", "http://localhost:8777")
-    class_prefix = os.getenv("CLASS_PREFIX", "Janelia")
-    
-    if not INDEXER_AVAILABLE:
-        logger.error("Indexing components not available")
-        return 1
-    
-    if not test_weaviate_connection(weaviate_url):
-        logger.error("Cannot connect to Weaviate")
-        return 1
-    
-    yesterday = datetime.now() - timedelta(days=1)
-    start_date = yesterday.strftime("%Y-%m-%d")
-    
-    logger.info(f"Indexing messages from {start_date}")
-    
-    data_base_path = "../data/slack"
-    if not os.path.exists(data_base_path):
-        logger.warning("No data directory found")
-        return 0
-    
-    workspace_dirs = [d for d in os.listdir(data_base_path) 
-                     if os.path.isdir(os.path.join(data_base_path, d))]
-    
-    if not workspace_dirs:
-        logger.warning("No workspace directories found")
-        return 0
-    
-    total_documents = 0
-    
-    for workspace_name in workspace_dirs:
-        messages_by_channel = get_messages_for_indexing(workspace_name, start_date)
-        
-        if not messages_by_channel:
-            continue
-        
-        all_documents = []
-        
-        for channel_name, messages in messages_by_channel.items():
-            if not messages:
-                continue
-            
-            documents = process_messages_to_documents(messages, channel_name)
-            
-            if documents:
-                all_documents.extend(documents)
-                logger.info(f"{channel_name}: {len(documents)} documents")
-        
-        if all_documents:
-            logger.info(f"Indexing {len(all_documents)} documents for {workspace_name}")
-            
-            if index_documents(all_documents, weaviate_url, class_prefix):
-                total_documents += len(all_documents)
-                update_indexing_state(start_date, datetime.now().timestamp())
-            else:
-                logger.error(f"Failed to index documents for {workspace_name}")
-                return 1
-    
-    logger.info(f"Completed - indexed {total_documents} documents")
-    
-    doc_count = get_document_count(weaviate_url, class_prefix)
-    if doc_count is not None:
-        logger.info(f"Total documents in database: {doc_count}")
-    
-    return 0
+    # Load the Slack archive from disk and process it into documents
+    loader = DailySlackLoader(export_dir, target_date=target_date, debug=args.debug)
+    documents = loader.load_all_documents()
+    logger.info(f"Loaded {len(documents)} documents for {target_date}")
+
+    if not documents:
+        logger.info(f"No documents to index for {target_date}")
+        sys.exit(0)
+
+    # Index the documents in Weaviate
+    indexer = Indexer(args.weaviate_url, args.class_prefix, args.remove_existing)
+    indexer.index(documents)
+
+    logger.info(f"Successfully indexed {len(documents)} documents for {target_date}")
 
 
-if __name__ == "__main__":
-    exit(main())
+if __name__ == '__main__':
+    main()
