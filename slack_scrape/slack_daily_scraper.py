@@ -62,6 +62,27 @@ def get_workspace_info(client: WebClient) -> str:
         return "unknown-workspace"
 
 
+def get_all_users(client: WebClient, logger: logging.Logger) -> List[Dict[str, Any]]:
+    """Fetch all users from the workspace."""
+    try:
+        users = []
+        cursor = None
+        
+        while True:
+            resp = client.users_list(limit=200, cursor=cursor)
+            users.extend(resp["members"])
+            cursor = resp.get("response_metadata", {}).get("next_cursor")
+            if not cursor:
+                break
+        
+        logger.info(f"Found {len(users)} users")
+        return users
+        
+    except SlackApiError as e:
+        logger.error(f"Error fetching users: {e}")
+        return []
+
+
 def get_all_channels(client: WebClient, logger: logging.Logger) -> List[Dict[str, Any]]:
     try:
         channels = []
@@ -236,13 +257,62 @@ def save_messages(messages: List[Dict[str, Any]], channel_name: str,
     return total_saved
 
 
+def save_metadata_files(users: List[Dict[str, Any]], channels: List[Dict[str, Any]], 
+                       workspace_name: str, date_str: str, logger: logging.Logger) -> None:
+    """Save users.json and channels.json files in index_slack.py compatible format."""
+    data_base_path = "../data/slack"
+    export_dir = os.path.join(data_base_path, workspace_name, f"slack_to_{date_str}")
+    os.makedirs(export_dir, exist_ok=True)
+    
+    # Save users.json - format expected by index_slack.py
+    users_data = []
+    for user in users:
+        if not user.get("deleted", False) and user.get("id"):
+            user_entry = {
+                "id": user["id"],
+                "name": user.get("name", user.get("id", "unknown")),
+                "profile": {
+                    "real_name": user.get("profile", {}).get("real_name", 
+                                user.get("real_name", 
+                                user.get("name", user.get("id", "Unknown User"))))
+                }
+            }
+            users_data.append(user_entry)
+    
+    users_path = os.path.join(export_dir, "users.json")
+    try:
+        with open(users_path, 'w') as f:
+            json.dump(users_data, f, indent=2)
+        logger.info(f"Saved {len(users_data)} users to {users_path}")
+    except IOError as e:
+        logger.error(f"Failed to save users.json: {e}")
+    
+    # Save channels.json - format expected by index_slack.py
+    channels_data = []
+    for channel in channels:
+        if channel.get("id") and channel.get("name"):
+            channel_entry = {
+                "id": channel["id"],
+                "name": channel["name"]
+            }
+            channels_data.append(channel_entry)
+    
+    channels_path = os.path.join(export_dir, "channels.json")
+    try:
+        with open(channels_path, 'w') as f:
+            json.dump(channels_data, f, indent=2)
+        logger.info(f"Saved {len(channels_data)} channels to {channels_path}")
+    except IOError as e:
+        logger.error(f"Failed to save channels.json: {e}")
+
+
 def main():
     try:
         logger = setup_logging()
         
-        slack_bot_token = os.getenv("SCRAPING_SLACK_BOT_TOKEN", "")
+        slack_bot_token = os.getenv("SCRAPING_SLACK_USER_TOKEN", "")
         if not slack_bot_token:
-            logger.error("SCRAPING_SLACK_BOT_TOKEN not found in environment variables")
+            logger.error("SCRAPING_SLACK_USER_TOKEN not found in environment variables")
             return 1
         
         client = WebClient(token=slack_bot_token)
@@ -253,8 +323,13 @@ def main():
         now = datetime.now()
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         oldest_ts = start_of_today.timestamp()
+        date_str = now.strftime('%Y-%m-%d')
         
-        logger.info(f"Scraping messages for {now.strftime('%Y-%m-%d')} (since {start_of_today.strftime('%H:%M:%S')})")
+        logger.info(f"Scraping messages for {date_str} (since {start_of_today.strftime('%H:%M:%S')})")
+        
+        # Fetch users and channels metadata
+        logger.info("Fetching workspace metadata...")
+        users = get_all_users(client, logger)
         
         slack_channels = os.getenv("SLACK_CHANNELS")
         if slack_channels:
@@ -266,6 +341,9 @@ def main():
         if not channels:
             logger.warning("No channels found")
             return 0
+        
+        # Save metadata files in index_slack.py compatible format
+        save_metadata_files(users, channels, workspace_name, date_str, logger)
         
         total_saved = 0
         for i, channel in enumerate(channels, 1):
