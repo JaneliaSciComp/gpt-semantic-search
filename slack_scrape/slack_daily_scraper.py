@@ -116,7 +116,7 @@ def get_specific_channels(channel_names: List[str]) -> List[Dict[str, Any]]:
 
 def discover_channels_from_data(logger: logging.Logger) -> List[Dict[str, Any]]:
     discovered_channels: Set[str] = set()
-    slack_data_path = "../data/slack"
+    slack_data_path = "data/slack"
     
     if os.path.exists(slack_data_path):
         try:
@@ -139,6 +139,56 @@ def discover_channels_from_data(logger: logging.Logger) -> List[Dict[str, Any]]:
     return channels
 
 
+def fetch_thread_replies(client: WebClient, channel_id: str, thread_ts: str, 
+                        logger: logging.Logger) -> List[Dict[str, Any]]:
+    """Fetch all replies in a thread using conversations.replies."""
+    all_replies = []
+    cursor = None
+    
+    while True:
+        try:
+            params = {
+                "channel": channel_id,
+                "ts": thread_ts,
+                "limit": 200,
+                "include_all_metadata": True
+            }
+            if cursor:
+                params["cursor"] = cursor
+            
+            result = client.conversations_replies(**params)
+            messages = result["messages"]
+            
+            # Skip the first message (parent) since we already have it
+            if not cursor:  # Only skip parent on first call
+                messages = messages[1:]
+            
+            all_replies.extend(messages)
+            
+            if not result.get("has_more", False):
+                break
+            
+            cursor = result.get("response_metadata", {}).get("next_cursor")
+            if not cursor:
+                break
+            
+            time.sleep(1.1)
+            
+        except SlackApiError as e:
+            if e.response.status_code == 429:
+                retry_after = int(e.response.headers.get("Retry-After", 60))
+                time.sleep(retry_after + 5)
+                continue
+            else:
+                logger.warning(f"Error fetching thread replies for {thread_ts}: {e}")
+                break
+        except Exception as e:
+            logger.error(f"Error fetching thread replies: {e}")
+            break
+    
+    return all_replies
+
+
 def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str, 
                          oldest_ts: float, logger: logging.Logger) -> List[Dict[str, Any]]:
     all_messages = []
@@ -152,7 +202,8 @@ def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str
                 "channel": channel_id,
                 "limit": 200,
                 "oldest": str(oldest_ts),
-                "inclusive": True
+                "inclusive": True,
+                "include_all_metadata": True
             }
             if cursor:
                 params["cursor"] = cursor
@@ -166,7 +217,22 @@ def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str
             if not messages:
                 break
             
-            all_messages.extend(messages)
+            # Process each message to check for threads
+            for message in messages:
+                all_messages.append(message)
+                
+                # Check if this message has thread replies
+                thread_ts = message.get("thread_ts")
+                reply_count = message.get("reply_count", 0)
+                
+                # If this is a parent message with replies, fetch the thread
+                if (thread_ts and 
+                    thread_ts == message.get("ts") and  # This is the parent message
+                    reply_count > 0):
+                    
+                    logger.debug(f"  Fetching {reply_count} thread replies for message {thread_ts}")
+                    thread_replies = fetch_thread_replies(client, channel_id, thread_ts, logger)
+                    all_messages.extend(thread_replies)
             
             if not result.get("has_more", False):
                 break
@@ -207,13 +273,60 @@ def organize_messages_by_date(messages: List[Dict[str, Any]]) -> Dict[str, List[
     return messages_by_date
 
 
+def enrich_messages_with_user_profiles(messages: List[Dict[str, Any]], 
+                                      users: List[Dict[str, Any]], 
+                                      logger: logging.Logger) -> List[Dict[str, Any]]:
+    """Enrich messages with user profile information from users list."""
+    # Build user ID to profile mapping
+    user_profiles = {}
+    for user in users:
+        if user.get("id") and not user.get("deleted", False):
+            user_id = user["id"]
+            profile = {
+                "real_name": user.get("profile", {}).get("real_name", 
+                           user.get("real_name", 
+                           user.get("name", user_id))),
+                "display_name": user.get("profile", {}).get("display_name", 
+                              user.get("name", user_id)),
+                "first_name": user.get("profile", {}).get("first_name", ""),
+                "name": user.get("name", user_id),
+                "avatar_hash": user.get("profile", {}).get("avatar_hash", ""),
+                "image_72": user.get("profile", {}).get("image_72", ""),
+                "team": user.get("team_id", ""),
+                "is_restricted": user.get("is_restricted", False),
+                "is_ultra_restricted": user.get("is_ultra_restricted", False)
+            }
+            user_profiles[user_id] = profile
+    
+    logger.debug(f"Built user profile mapping for {len(user_profiles)} users")
+    
+    # Enrich each message with user profile
+    enriched_messages = []
+    for message in messages:
+        # Create a copy of the message
+        enriched_message = message.copy()
+        
+        # Add user_profile if user exists in our mapping
+        user_id = message.get("user")
+        if user_id and user_id in user_profiles:
+            enriched_message["user_profile"] = user_profiles[user_id]
+        
+        enriched_messages.append(enriched_message)
+    
+    return enriched_messages
+
+
 def save_messages(messages: List[Dict[str, Any]], channel_name: str, 
-                 workspace_name: str, logger: logging.Logger) -> int:
+                 workspace_name: str, users: List[Dict[str, Any]], 
+                 logger: logging.Logger) -> int:
     if not messages:
         return 0
     
-    data_base_path = "../data/slack"
-    messages_by_date = organize_messages_by_date(messages)
+    # Enrich messages with user profile information
+    enriched_messages = enrich_messages_with_user_profiles(messages, users, logger)
+    
+    data_base_path = "data/slack"
+    messages_by_date = organize_messages_by_date(enriched_messages)
     total_saved = 0
     
     for date_str, date_messages in messages_by_date.items():
@@ -260,7 +373,7 @@ def save_messages(messages: List[Dict[str, Any]], channel_name: str,
 def save_metadata_files(users: List[Dict[str, Any]], channels: List[Dict[str, Any]], 
                        workspace_name: str, date_str: str, logger: logging.Logger) -> None:
     """Save users.json and channels.json files in index_slack.py compatible format."""
-    data_base_path = "../data/slack"
+    data_base_path = "data/slack"
     export_dir = os.path.join(data_base_path, workspace_name, f"slack_to_{date_str}")
     os.makedirs(export_dir, exist_ok=True)
     
@@ -356,7 +469,7 @@ def main():
             logger.debug(f"  Fetched {len(messages)} messages from {channel['name']}")
             
             if messages:
-                saved = save_messages(messages, channel["name"], workspace_name, logger)
+                saved = save_messages(messages, channel["name"], workspace_name, users, logger)
                 total_saved += saved
                 logger.info(f"  Saved {saved} messages")
             else:
