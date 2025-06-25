@@ -54,12 +54,6 @@ If you want to download the latest data from each source:
 
 ### Run indexing
 
-Index a Slack export to the Janelia class in Weaviate:
-
-    pixi run ./index_slack.py -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
-
-    pixi run ./index_slack.py -i ./data/slack/janelia-software/slack_to_2023-05-18 -c Janelia
-
 Add a wiki export:
 
     pixi run ./index_wiki.py -i ./data/wiki -c Janelia
@@ -75,8 +69,6 @@ To run the webapp in dev mode:
 
     pixi run streamlit run 1_🔍_Search.py -- -w http://localhost:8777
     
-    pixi run streamlit run No_Slack_Search.py -- -w http://localhost:8777
-
 ## Development Notes
 
 ### Getting notebooks to work in VS Code
@@ -111,16 +103,50 @@ To build the Slackbot container for both Linux and Mac:
     docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f Dockerfile_slack .
 
 
-## Scheduled Slack Scraping
+## Slack Scraping
 
-### Scrape past slack messages (highly inneficent & already loaded in internal database)
+### Required Environment Variable
 
-pixi run python slack_past_scraper.py
+For Slack scraping, you need a `SCRAPING_SLACK_USER_TOKEN` environment variable. Add this to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`):
 
-### Set up daily automation (Currently Cronjob, update to jenkins in the future)
+    export SCRAPING_SLACK_USER_TOKEN="xoxp-your-user-token-here"
 
-pixi run python setup_scheduler.py
+### Daily automated scraping and indexing (recommended)
 
+The system uses a hybrid approach with separate processes for scraping and indexing:
+
+1. **Daily Scraper** (midnight): Fast, reliable message collection
+2. **Daily Indexer** (3 AM): Process and index messages into Weaviate
+
+#### Setting up the cron jobs
+
+1. **Open your crontab for editing:**
+   ```bash
+   crontab -e
+   ```
+
+2. **Add both cron jobs** (adjust paths to match your installation):
+   ```bash
+   # Daily scraping at midnight
+   0 * * * * cd /path/to/gpt-semantic-search/slack_scrape && pixi run python slack_daily_scraper.py >> logs/cron.log 2>&1
+   
+   # Daily indexing at 1 AM
+   0 1 * * * cd /path/to/gpt-semantic-search/slack_scrape && pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
+   ```
+
+3. **Find your correct paths:**
+   - Project path: `pwd` (when in the project directory)
+   - Pixi path: `which pixi`
+
+4. **Example with full paths:**
+   ```bash
+   # Daily scraping at midnight
+   0 0 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_scraper.py >> logs/cron.log 2>&1
+   
+   # Daily indexing at 3 AM
+   0 3 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
+   ```
+   
 ### Update dependencies
 
 To update pixi.toml with new dependencies, edit the file directly or use:

@@ -18,7 +18,7 @@ services:
       LIMIT_RESOURCES: 'true'
 
   semantic-search:
-    image: ghcr.io/janeliascicomp/gpt-semantic-search-web:0.3.1
+    image: ghcr.io/janeliascicomp/gpt-semantic-search-web:0.4.0
     ports:
     - 8501:8501
     restart: unless-stopped
@@ -40,9 +40,6 @@ services:
       SLACK_TOKEN:
     depends_on:
       - weaviate
-    # volumes:
-    #   - ./slack_app.py:/app/slack_app.py:ro
-    #   - ./generate_full_response.py:/app/generate_full_response.py:ro
 
 # To push an update to the docker image, run the following command and fill in the blanks:
 # docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-web:latest -f Dockerfile .
