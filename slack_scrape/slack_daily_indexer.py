@@ -265,7 +265,7 @@ class DailySlackLoader():
         return documents
 
 
-def find_export_directory_for_date(target_date, data_base_path="../data/slack"):
+def find_export_directory_for_date(target_date, data_base_path="data/slack"):
     """Find the export directory for a specific date."""
     if not os.path.exists(data_base_path):
         return None
