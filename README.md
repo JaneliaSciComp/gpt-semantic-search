@@ -54,12 +54,6 @@ If you want to download the latest data from each source:
 
 ### Run indexing
 
-Index a Slack export to the Janelia class in Weaviate:
-
-    pixi run ./index_slack.py -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
-
-    pixi run ./index_slack.py -i ./data/slack/janelia-software/slack_to_2023-05-18 -c Janelia
-
 Add a wiki export:
 
     pixi run ./index_wiki.py -i ./data/wiki -c Janelia
@@ -75,8 +69,6 @@ To run the webapp in dev mode:
 
     pixi run streamlit run 1_🔍_Search.py -- -w http://localhost:8777
     
-    pixi run streamlit run No_Slack_Search.py -- -w http://localhost:8777
-
 ## Development Notes
 
 ### Getting notebooks to work in VS Code
@@ -119,11 +111,6 @@ For Slack scraping, you need a `SCRAPING_SLACK_USER_TOKEN` environment variable.
 
     export SCRAPING_SLACK_USER_TOKEN="xoxp-your-user-token-here"
 
-### One-time historical scraping (for initial setup)
-
-    cd slack_scrape
-    pixi run python slack_past_scraper.py
-
 ### Daily automated scraping and indexing (recommended)
 
 The system uses a hybrid approach with separate processes for scraping and indexing:
@@ -159,47 +146,7 @@ The system uses a hybrid approach with separate processes for scraping and index
    # Daily indexing at 3 AM
    0 3 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
    ```
-
-#### How it works
-
-**Daily Scraper (12:00 AM):**
-- Discovers all accessible public channels automatically
-- Fetches messages from the last 24 hours (or since last run)
-- Saves data to `../data/slack/{workspace}/`
-- Fast and reliable (2-5 minutes)
-- Logs to `logs/slack_daily_scraper_YYYYMMDD.log`
-
-**Daily Indexer (3:00 AM):**
-- Processes yesterday's scraped messages
-- Creates searchable documents
-- Indexes them into Weaviate database
-- Makes messages searchable within 3-6 hours
-- Logs to `logs/slack_daily_indexer_YYYYMMDD.log`
-
-#### Configuration options
-
-**Specify specific channels** (optional):
-```bash
-export SLACK_CHANNELS="general,development,support"
-```
-
-**Enable/disable indexing:**
-```bash
-export ENABLE_INDEXING="true"              # Enable automatic indexing
-export WEAVIATE_URL="http://localhost:8777"  # Optional, defaults to this
-export CLASS_PREFIX="Janelia"               # Optional, defaults to this
-```
-
-**Required for indexing:**
-- `OPENAI_API_KEY` must be set for embedding generation
-
-#### Benefits of hybrid approach
-
-- **Reliability**: Scraping and indexing failures don't affect each other
-- **Speed**: Daily scraping completes quickly (no embedding overhead)
-- **Efficiency**: Better API usage and error recovery
-- **Availability**: Messages searchable within 3-6 hours
-
+   
 ### Update dependencies
 
 To update pixi.toml with new dependencies, edit the file directly or use:
