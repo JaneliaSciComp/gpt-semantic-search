@@ -7,7 +7,7 @@ import json
 import time
 import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Set
 from collections import defaultdict
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -27,31 +27,6 @@ def setup_logging() -> logging.Logger:
     )
     
     return logging.getLogger("slack_daily_scraper")
-
-
-def get_last_run_timestamp() -> float:
-    state_path = os.path.join("logs", "last_scrape_timestamp.txt")
-    
-    if os.path.exists(state_path):
-        try:
-            with open(state_path, 'r') as f:
-                return float(f.read().strip())
-        except (ValueError, IOError):
-            return time.time() - 86400
-    else:
-        return time.time() - 86400
-
-
-def update_last_run_timestamp(timestamp: float) -> None:
-    os.makedirs("logs", exist_ok=True)
-    state_path = os.path.join("logs", "last_scrape_timestamp.txt")
-    
-    try:
-        with open(state_path, 'w') as f:
-            f.write(str(timestamp))
-    except IOError as e:
-        logging.error(f"Failed to update state: {e}")
-
 
 def get_workspace_info(client: WebClient) -> str:
     try:
@@ -159,11 +134,17 @@ def fetch_thread_replies(client: WebClient, channel_id: str, thread_ts: str,
             result = client.conversations_replies(**params)
             messages = result["messages"]
             
-            # Skip the first message (parent) since we already have it
-            if not cursor:  # Only skip parent on first call
-                messages = messages[1:]
+            # Filter out the parent message - only keep actual thread replies
+            # Parent message has thread_ts == ts, replies have thread_ts != ts
+            thread_replies_only = []
+            for msg in messages:
+                msg_ts = msg.get("ts")
+                msg_thread_ts = msg.get("thread_ts")
+                # Only include if this is actually a reply (not the parent)
+                if msg_thread_ts and msg_ts and msg_thread_ts != msg_ts:
+                    thread_replies_only.append(msg)
             
-            all_replies.extend(messages)
+            all_replies.extend(thread_replies_only)
             
             if not result.get("has_more", False):
                 break
