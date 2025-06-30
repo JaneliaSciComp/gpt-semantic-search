@@ -119,10 +119,10 @@ For Slack scraping, you need a `SCRAPING_SLACK_USER_TOKEN` environment variable.
 **Set up cron jobs:**
 
 ```bash
-# Example: Daily scraping beginning at midnight, then on an interval of every 8 hours  
-0 0 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_scraper.py --interval 8h >> logs/slack_scraper.log 2>&1
+# Daily scraping - automatically continues from last successful run
+0 0 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_scraper.py >> logs/slack_scraper.log 2>&1
 
-# Example: Daily indexing at 3 AM. Tracks the 
+# Daily indexing - smart discovery of new data
 0 3 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_indexer.py >> logs/slack_indexer.log 2>&1
 ```
    

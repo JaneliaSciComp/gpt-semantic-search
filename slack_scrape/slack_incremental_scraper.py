@@ -32,29 +32,6 @@ def setup_logging() -> logging.Logger:
     return logging.getLogger("slack_scraper")
 
 
-def parse_time_interval(interval_str: str) -> timedelta:
-    """Parse time interval string like '3h', '30m', '1d' into timedelta."""
-    if not interval_str:
-        raise ValueError("Interval string cannot be empty")
-    
-    unit = interval_str[-1].lower()
-    try:
-        value = int(interval_str[:-1])
-    except ValueError:
-        raise ValueError(f"Invalid interval format: {interval_str}")
-    
-    if unit == 's':
-        return timedelta(seconds=value)
-    elif unit == 'm':
-        return timedelta(minutes=value)
-    elif unit == 'h':
-        return timedelta(hours=value)
-    elif unit == 'd':
-        return timedelta(days=value)
-    else:
-        raise ValueError(f"Unsupported time unit: {unit}. Use s, m, h, or d")
-
-
 def find_latest_successful_run(data_path: str = "data/slack") -> Optional[float]:
     """Find the most recent successful run timestamp."""
     if not os.path.exists(data_path):
@@ -76,27 +53,6 @@ def find_latest_successful_run(data_path: str = "data/slack") -> Optional[float]
                     continue
     
     return latest_timestamp if latest_timestamp > 0 else None
-
-
-def calculate_scraping_window(start_timestamp: Optional[float], interval: timedelta, 
-                            buffer: timedelta, logger: logging.Logger) -> tuple[float, float]:
-    """Calculate the time window for scraping messages."""
-    now = datetime.now()
-    
-    if start_timestamp:
-        start_time = datetime.fromtimestamp(start_timestamp)
-        end_time = start_time + interval
-    else:
-        end_time = now
-        start_time = end_time - interval
-    
-    # Apply buffer (subtract from start time to ensure overlap)
-    buffered_start_time = start_time - buffer
-    
-    logger.info(f"Scraping window: {buffered_start_time} to {end_time} "
-               f"(interval: {interval}, buffer: {buffer})")
-    
-    return buffered_start_time.timestamp(), end_time.timestamp()
 
 
 def get_workspace_info(client: WebClient) -> str:
@@ -481,11 +437,7 @@ def cleanup_failed_run(workspace_name: str, run_timestamp: int, logger: logging.
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Slack Incremental Scraper with configurable intervals')
-    parser.add_argument('--interval', type=str, default='1d', 
-                       help='Scraping interval (e.g., 3h, 30m, 1d, 2d) - default: 1d')
-    parser.add_argument('--buffer', type=str, default='1h',
-                       help='Buffer time to subtract from start (e.g., 1h, 30m) - default: 1h')
+    parser = argparse.ArgumentParser(description='Slack Incremental Scraper - automatically continues from last successful run')
     parser.add_argument('--start-from', type=float,
                        help='Unix timestamp to start scraping from (overrides auto-detection)')
     parser.add_argument('--end-at', type=float,
@@ -499,14 +451,6 @@ def main():
     if args.debug:
         logger.setLevel(logging.DEBUG)
     
-    # Parse intervals
-    try:
-        interval = parse_time_interval(args.interval)
-        buffer = parse_time_interval(args.buffer)
-    except ValueError as e:
-        logger.error(f"Invalid time interval: {e}")
-        return 1
-    
     # Generate run timestamp (when this scraping run started)
     run_timestamp = int(datetime.now().timestamp())
     
@@ -519,26 +463,26 @@ def main():
         client = WebClient(token=slack_bot_token)
         workspace_name = get_workspace_info(client)
         
-        # Determine the time window for scraping
+        # Determine the time window for scraping - always auto-continue
         if args.start_from:
             start_timestamp = args.start_from
+            logger.info(f"Using custom start timestamp: {datetime.fromtimestamp(start_timestamp)}")
         else:
             # Find the most recent successful run to continue from
             latest_timestamp = find_latest_successful_run()
             if latest_timestamp:
                 start_timestamp = latest_timestamp
-                logger.info(f"Continuing from last successful run: {datetime.fromtimestamp(latest_timestamp)}")
+                logger.info(f"Auto-continuing from last successful run: {datetime.fromtimestamp(latest_timestamp)}")
             else:
-                # No previous runs, start from interval ago
-                start_timestamp = None
-                logger.info("No previous successful runs found, using interval-based start time")
+                # No previous runs, start from 24 hours ago
+                start_timestamp = (datetime.now() - timedelta(days=1)).timestamp()
+                logger.info(f"No previous runs found, starting from 24 hours ago: {datetime.fromtimestamp(start_timestamp)}")
         
-        # Calculate scraping window
-        oldest_ts, newest_ts = calculate_scraping_window(start_timestamp, interval, buffer, logger)
+        # Calculate scraping window - from start_timestamp to now
+        oldest_ts = start_timestamp
+        newest_ts = args.end_at if args.end_at else datetime.now().timestamp()
         
-        if args.end_at:
-            newest_ts = args.end_at
-            logger.info(f"Using custom end timestamp: {datetime.fromtimestamp(newest_ts)}")
+        logger.info(f"Scraping window: {datetime.fromtimestamp(oldest_ts)} to {datetime.fromtimestamp(newest_ts)}")
         
         logger.info(f"Starting scraping run: run_{run_timestamp}")
         
