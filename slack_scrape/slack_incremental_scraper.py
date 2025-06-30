@@ -138,7 +138,7 @@ def get_all_channels(client: WebClient, logger: logging.Logger) -> List[Dict[str
             resp = client.conversations_list(
                 types="public_channel", 
                 exclude_archived=True, 
-                limit=200, 
+                limit=999, # This limit includes archived channels--incrased to max limit to avoid hitting 200 total channels
                 cursor=cursor
             )
             channels.extend(resp["channels"])
@@ -154,8 +154,8 @@ def get_all_channels(client: WebClient, logger: logging.Logger) -> List[Dict[str
         return []
 
 
-def get_specific_channels(channel_names: List[str]) -> List[Dict[str, Any]]:
-    return [{"id": name, "name": name} for name in channel_names]
+# def get_specific_channels(channel_names: List[str]) -> List[Dict[str, Any]]:
+#     return [{"id": name, "name": name} for name in channel_names]
 
 
 def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str, 
@@ -546,12 +546,15 @@ def main():
         logger.info("Fetching workspace metadata...")
         users = get_all_users(client, logger)
         
-        slack_channels = os.getenv("SLACK_CHANNELS")
-        if slack_channels:
-            channel_names = [name.strip() for name in slack_channels.split(",")]
-            channels = get_specific_channels(channel_names)
-        else:
-            channels = get_all_channels(client, logger)
+        # slack_channels = os.getenv("SLACK_CHANNELS")
+        # if slack_channels:
+        #     channel_names = [name.strip() for name in slack_channels.split(",")]
+        #     channels = get_specific_channels(channel_names)
+        # else:
+        #     channels = get_all_channels(client, logger)
+        
+        # Always use proper API call to get channels
+        channels = get_all_channels(client, logger)
         
         if not channels:
             logger.warning("No channels found")
