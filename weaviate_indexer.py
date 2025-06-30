@@ -139,8 +139,11 @@ class Indexer():
 
         logger.info(f"Completed indexing into '{class_prefix}_Node'")
 
-    def get_latest_timestamp(self) -> float:
+    def get_latest_timestamp(self, source: str = None) -> float:
         """Query Weaviate for the most recent scraped_at timestamp.
+        
+        Args:
+            source: Optional source filter (e.g., "Slack"). If None, queries all sources.
         
         Returns:
             Unix timestamp of the most recent document, or 0.0 if no documents found
@@ -154,30 +157,30 @@ class Indexer():
         class_name = _class_name(self.class_prefix)
         
         try:
-            # Query for the maximum scraped_at timestamp
-            result = (
-                client.query
-                .aggregate(class_name)
-                .with_fields("scraped_at { maximum }")
-                .do()
-            )
+            query = client.query.aggregate(class_name)
             
-            if (result.get("data") and 
-                result["data"].get("Aggregate") and 
-                result["data"]["Aggregate"].get(class_name) and
-                len(result["data"]["Aggregate"][class_name]) > 0 and
-                result["data"]["Aggregate"][class_name][0].get("scraped_at") and
-                result["data"]["Aggregate"][class_name][0]["scraped_at"].get("maximum") is not None):
-                
+            if source:
+                query = query.with_where({
+                    "path": ["source"],
+                    "operator": "Equal",
+                    "valueText": source
+                })
+            
+            result = query.with_fields("scraped_at { maximum }").do()
+            
+            try:
                 max_timestamp = result["data"]["Aggregate"][class_name][0]["scraped_at"]["maximum"]
-                logger.info(f"Found latest timestamp in database: {max_timestamp} ({datetime.fromtimestamp(max_timestamp)})")
+                source_msg = f" for {source}" if source else ""
+                logger.info(f"Found latest timestamp{source_msg} in database: {max_timestamp} ({datetime.fromtimestamp(max_timestamp)})")
                 return float(max_timestamp)
-            else:
-                logger.info("No documents found in database or no scraped_at timestamps")
-                return 0.0
+            except (KeyError, IndexError):  
+                source_msg = f" for {source}" if source else ""
+                logger.info(f"No documents{source_msg} found in database or no scraped_at timestamps")
+                return 0.0  
                 
         except Exception as e:
-            logger.error(f"Error querying latest timestamp: {e}")
+            source_msg = f" for {source}" if source else ""
+            logger.error(f"Error querying latest timestamp{source_msg}: {e}")
             return 0.0
 
     def get_latest_slack_timestamp(self) -> float:
@@ -186,42 +189,4 @@ class Indexer():
         Returns:
             Unix timestamp of the most recent Slack document scraping, or 0.0 if no documents found
         """
-        client = weaviate.Client(self.weaviate_url)
-        
-        if not client.is_live():
-            logger.error(f"Weaviate is not live at {self.weaviate_url}")
-            return 0.0
-        
-        class_name = _class_name(self.class_prefix)
-        
-        try:
-            # Query for Slack documents and get the maximum scraped_at value
-            result = (
-                client.query
-                .aggregate(class_name)
-                .with_where({
-                    "path": ["source"],
-                    "operator": "Equal",
-                    "valueText": "Slack"
-                })
-                .with_fields("scraped_at { maximum }")
-                .do()
-            )
-            
-            if (result.get("data") and 
-                result["data"].get("Aggregate") and 
-                result["data"]["Aggregate"].get(class_name) and
-                len(result["data"]["Aggregate"][class_name]) > 0 and
-                result["data"]["Aggregate"][class_name][0].get("scraped_at") and
-                result["data"]["Aggregate"][class_name][0]["scraped_at"].get("maximum") is not None):
-                
-                max_timestamp = result["data"]["Aggregate"][class_name][0]["scraped_at"]["maximum"]
-                logger.info(f"Found latest Slack scraped_at timestamp: {max_timestamp} ({datetime.fromtimestamp(max_timestamp)})")
-                return float(max_timestamp)
-            else:
-                logger.info("No Slack documents found in database")
-                return 0.0
-                
-        except Exception as e:
-            logger.error(f"Error querying latest Slack scraped_at timestamp: {e}")
-            return 0.0
+        return self.get_latest_timestamp(source="Slack")
