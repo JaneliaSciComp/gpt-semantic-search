@@ -79,7 +79,6 @@ def find_folders_to_process(data_path: str = "data/slack",
                 except ValueError:
                     continue
     
-    # Sort by timestamp (oldest first)
     folders_to_process.sort(key=lambda x: x[2])
     logger.info(f"Found {len(folders_to_process)} folders to index")
     
@@ -120,7 +119,7 @@ def mark_folder_status(workspace_name: str, folder_name: str, status: str, logge
     # Extract timestamp
     try:
         timestamp = folder_name.split("_")[-1]
-        int(timestamp)  # Validate it's a number
+        int(timestamp)  
     except (ValueError, IndexError):
         logger.error(f"Could not extract timestamp from folder: {folder_name}")
         return False
@@ -202,11 +201,9 @@ class SlackLoader:
         if 'subtype' in message and get(message, 'subtype') in IGNORED_SUBTYPES:
             return None, None
         
-        # Use the message's unique timestamp - ignore thread_ts completely
         ts = Decimal(message['ts'])
-
-        # Get user name
         user_id = message.get('user', 'unknown')
+
         try:
             realname = self.id2realname[user_id]
         except KeyError:
@@ -246,7 +243,7 @@ class SlackLoader:
 
     def load_documents(self, channel_name: str) -> List[Document]:
         channel_id = self.channel2id.get(channel_name, channel_name)
-        messages = {}  # ts -> message text
+        messages = {}  
         
         # Load all JSON files in the channel directory
         channel_dir = os.path.join(self.data_path, channel_name)
@@ -269,8 +266,7 @@ class SlackLoader:
         if not messages:
             return []
 
-        # Create documents from messages - group by time proximity, not threads
-        documents = []
+=        documents = []
         doc_text = ""
         start_ts = None
         prev_ts = Decimal(0)
@@ -286,15 +282,11 @@ class SlackLoader:
                 doc_text = ""
                 start_ts = None
 
-            # Starting timestamp for the next document
             if not start_ts:
                 start_ts = str(ts)
-
-            # Add this message
             doc_text += messages[ts]
             prev_ts = ts
 
-        # Add final document
         if doc_text:
             doc = Document(text=doc_text, extra_info={
                 "source": SOURCE,
@@ -322,13 +314,11 @@ def process_folder(workspace_name: str, folder_name: str, weaviate_url: str,
     try:
         logger.info(f"Processing folder: {folder_name}")
         
-        # Load documents
         loader = SlackLoader(folder_path, debug=debug)
         documents = loader.load_all_documents()
         logger.info(f"Loaded {len(documents)} documents")
 
-        # Index documents
-        indexer = Indexer(weaviate_url, class_prefix, False)  # Never remove existing
+        indexer = Indexer(weaviate_url, class_prefix, False) 
         indexer.index(documents)
 
         logger.info(f"Successfully indexed {len(documents)} documents")
@@ -360,7 +350,6 @@ def retry_failed_folders(data_path: str, weaviate_url: str, class_prefix: str, d
             stats["failed"] += 1
             continue
         
-        # Get the processing folder name
         processing_folder = f"run_{int(timestamp)}"
         
         # Process the folder

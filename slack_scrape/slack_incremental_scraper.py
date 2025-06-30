@@ -110,10 +110,6 @@ def get_all_channels(client: WebClient, logger: logging.Logger) -> List[Dict[str
         return []
 
 
-# def get_specific_channels(channel_names: List[str]) -> List[Dict[str, Any]]:
-#     return [{"id": name, "name": name} for name in channel_names]
-
-
 def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str, 
                          oldest_ts: float, logger: logging.Logger) -> List[Dict[str, Any]]:
     all_messages = []
@@ -138,7 +134,6 @@ def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str
             if not messages:
                 break
             
-            # Process each message - simplified thread handling
             for message in messages:
                 msg_ts = message.get("ts")
                 thread_ts = message.get("thread_ts")
@@ -146,7 +141,7 @@ def fetch_channel_messages(client: WebClient, channel_id: str, channel_name: str
                 
                 # If this is a threaded message with replies, get the full thread
                 if reply_count > 0 and msg_ts not in threaded_messages:
-                    # Use conversations.replies to get the complete thread
+
                     thread_messages = fetch_complete_thread(client, channel_id, msg_ts, logger)
                     all_messages.extend(thread_messages)
                     # Mark all messages in this thread as processed
@@ -240,6 +235,7 @@ def enrich_messages_with_user_profiles(messages: List[Dict[str, Any]],
                                       users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Enrich messages with user profile information from users list."""
     # Build user ID to profile mapping
+    # Emulate block syntax from slack web export
     user_profiles = {}
     for user in users:
         if user.get("id") and not user.get("deleted", False):
@@ -451,7 +447,6 @@ def main():
     if args.debug:
         logger.setLevel(logging.DEBUG)
     
-    # Generate run timestamp (when this scraping run started)
     run_timestamp = int(datetime.now().timestamp())
     
     try:
@@ -463,7 +458,6 @@ def main():
         client = WebClient(token=slack_bot_token)
         workspace_name = get_workspace_info(client)
         
-        # Determine the time window for scraping - always auto-continue
         if args.start_from:
             start_timestamp = args.start_from
             logger.info(f"Using custom start timestamp: {datetime.fromtimestamp(start_timestamp)}")
@@ -483,21 +477,10 @@ def main():
         newest_ts = args.end_at if args.end_at else datetime.now().timestamp()
         
         logger.info(f"Scraping window: {datetime.fromtimestamp(oldest_ts)} to {datetime.fromtimestamp(newest_ts)}")
-        
         logger.info(f"Starting scraping run: run_{run_timestamp}")
-        
-        # Fetch users and channels metadata
         logger.info("Fetching workspace metadata...")
         users = get_all_users(client, logger)
         
-        # slack_channels = os.getenv("SLACK_CHANNELS")
-        # if slack_channels:
-        #     channel_names = [name.strip() for name in slack_channels.split(",")]
-        #     channels = get_specific_channels(channel_names)
-        # else:
-        #     channels = get_all_channels(client, logger)
-        
-        # Always use proper API call to get channels
         channels = get_all_channels(client, logger)
         
         if not channels:
@@ -514,7 +497,7 @@ def main():
                 logger.error("Validation failed")
                 return 1
         
-        # Save metadata files
+
         save_metadata_files(users, channels, workspace_name, run_timestamp, logger)
         
         total_saved = 0
