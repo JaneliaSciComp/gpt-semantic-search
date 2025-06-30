@@ -7,6 +7,7 @@ import json
 import logging
 import argparse
 import shutil
+import re
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -194,61 +195,58 @@ class SlackLoader:
         return text
 
     def parse_message(self, message):
-        """Parse a message into text."""
-        thread_id, text_msg = None, None
-        if get(message, 'type') == 'message':
-            if 'subtype' in message and get(message, 'subtype') in IGNORED_SUBTYPES:
-                return None, None
+        """Parse a message into text. Returns message timestamp and formatted text."""
+        if get(message, 'type') != 'message':
+            return None, None
             
-            ts = message['ts']
-            thread_ts = get(message, 'thread_ts') or ts
-            thread_id = Decimal(thread_ts)
-
-            # Get user name
-            user_id = message.get('user', 'unknown')
-            try:
-                realname = self.id2realname[user_id]
-            except KeyError:
-                try:
-                    realname = message['user_profile']['display_name']
-                except KeyError:
-                    realname = user_id
-                
-            if 'blocks' in message:
-                text = self.extract_text(message['blocks'])
-            else:
-                text = message.get('text', '')
-            
-            # Handle user mentions in text
-            if user_id in self.id2realname:
-                text_msg = text.replace("<@([^>]+)>", lambda m: self.id2realname.get(m.group(1), m.group(1)))
-            else:
-                text_msg = text
-            text_msg = fix_text(text_msg)
-
-            # Handle attachments and files
-            if 'attachments' in message:
-                for attachment in message['attachments']:
-                    if 'title' in attachment: text_msg += f"\n{fix_text(attachment['title'])}"
-                    if 'text' in attachment: text_msg += f"\n{fix_text(attachment['text'])}"
-                    
-            if 'files' in message:
-                for file in message['files']:
-                    if 'name' in file:
-                        text_msg += f"\n<{file['name']}>"
-
-            if 'reactions' in message:
-                text_msg += f"\nOthers reacted to the previous message with "
-                r = [f"{reaction['name']} a total of {reaction['count']} times" for reaction in message['reactions']]
-                text_msg += ", and with ".join(r) + "."
-
-            text_msg = f"{realname} said: {text_msg}\n"
+        if 'subtype' in message and get(message, 'subtype') in IGNORED_SUBTYPES:
+            return None, None
         
-        return thread_id, text_msg
+        # Use the message's unique timestamp - ignore thread_ts completely
+        ts = Decimal(message['ts'])
+
+        # Get user name
+        user_id = message.get('user', 'unknown')
+        try:
+            realname = self.id2realname[user_id]
+        except KeyError:
+            try:
+                realname = message['user_profile']['display_name']
+            except KeyError:
+                realname = user_id
+            
+        if 'blocks' in message:
+            text = self.extract_text(message['blocks'])
+        else:
+            text = message.get('text', '')
+        
+        # Handle user mentions in text
+        text_msg = re.sub(r"<@([^>]+)>", lambda m: self.id2realname.get(m.group(1), m.group(1)), text)
+        text_msg = fix_text(text_msg)
+
+        # Handle attachments and files
+        if 'attachments' in message:
+            for attachment in message['attachments']:
+                if 'title' in attachment: text_msg += f"\n{fix_text(attachment['title'])}"
+                if 'text' in attachment: text_msg += f"\n{fix_text(attachment['text'])}"
+                
+        if 'files' in message:
+            for file in message['files']:
+                if 'name' in file:
+                    text_msg += f"\n<{file['name']}>"
+
+        if 'reactions' in message:
+            text_msg += f"\nOthers reacted to the previous message with "
+            r = [f"{reaction['name']} a total of {reaction['count']} times" for reaction in message['reactions']]
+            text_msg += ", and with ".join(r) + "."
+
+        text_msg = f"{realname} said: {text_msg}\n"
+        
+        return ts, text_msg
 
     def load_documents(self, channel_name: str) -> List[Document]:
         channel_id = self.channel2id.get(channel_name, channel_name)
-        messages = {}
+        messages = {}  # ts -> message text
         
         # Load all JSON files in the channel directory
         channel_dir = os.path.join(self.data_path, channel_name)
@@ -261,11 +259,9 @@ class SlackLoader:
                 try:
                     with open(file_path, 'r') as f:
                         for message in json.load(f):
-                            thread_id, text_msg = self.parse_message(message)
-                            if thread_id and text_msg:
-                                if thread_id not in messages:
-                                    messages[thread_id] = []
-                                messages[thread_id].append(text_msg)
+                            ts, text_msg = self.parse_message(message)
+                            if ts and text_msg:
+                                messages[ts] = text_msg
                 except (json.JSONDecodeError, IOError) as e:
                     logger.error(f"Error reading {file_path}: {e}")
                     continue
@@ -273,15 +269,15 @@ class SlackLoader:
         if not messages:
             return []
 
-        # Create documents from messages
+        # Create documents from messages - group by time proximity, not threads
         documents = []
         doc_text = ""
         start_ts = None
-        prev_id = Decimal(0)
+        prev_ts = Decimal(0)
 
-        for thread_id in sorted(messages.keys()):
+        for ts in sorted(messages.keys()):
             # Create a new document whenever messages are separated by a longer pause
-            if doc_text and thread_id - prev_id > DOCUMENT_PAUSE_SECS:
+            if doc_text and ts - prev_ts > DOCUMENT_PAUSE_SECS:
                 doc = Document(text=doc_text, extra_info={
                     "source": SOURCE,
                     "scraped_at": datetime.now().timestamp()
@@ -292,13 +288,11 @@ class SlackLoader:
 
             # Starting timestamp for the next document
             if not start_ts:
-                start_ts = str(thread_id)
+                start_ts = str(ts)
 
-            # Add all messages from the current thread
-            for text_msg in messages[thread_id]:
-                doc_text += text_msg
-
-            prev_id = thread_id
+            # Add this message
+            doc_text += messages[ts]
+            prev_ts = ts
 
         # Add final document
         if doc_text:
