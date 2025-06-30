@@ -266,7 +266,7 @@ class SlackLoader:
         if not messages:
             return []
 
-=        documents = []
+        documents = []
         doc_text = ""
         start_ts = None
         prev_ts = Decimal(0)
