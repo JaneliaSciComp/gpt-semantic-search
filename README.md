@@ -75,9 +75,12 @@ To run the webapp in dev mode:
 
 You need to install a Jupyter kernel that point to the virtualenv:
 
-    python3 -m ipykernel install --user --name=env
+    pixi add jupyterlab pixi-kernel  
+    pixi add ipykernel 
 
-And then select the env as the Python Interpreter for the notebook.
+And then to open in JupyterLab: 
+    
+    pixi run jupyter lab
 
 ### Rebuild container
 
@@ -111,41 +114,17 @@ For Slack scraping, you need a `SCRAPING_SLACK_USER_TOKEN` environment variable.
 
     export SCRAPING_SLACK_USER_TOKEN="xoxp-your-user-token-here"
 
-### Daily automated scraping and indexing (recommended)
+#### Automated scraping and indexing
 
-The system uses a hybrid approach with separate processes for scraping and indexing:
+**Set up cron jobs:**
 
-1. **Daily Scraper** (midnight): Fast, reliable message collection
-2. **Daily Indexer** (3 AM): Process and index messages into Weaviate
+```bash
+# Daily scraping - automatically continues from last successful run
+0 0 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_scraper.py >> logs/slack_scraper.log 2>&1
 
-#### Setting up the cron jobs
-
-1. **Open your crontab for editing:**
-   ```bash
-   crontab -e
-   ```
-
-2. **Add both cron jobs** (adjust paths to match your installation):
-   ```bash
-   # Daily scraping at midnight
-   0 * * * * cd /path/to/gpt-semantic-search/slack_scrape && pixi run python slack_daily_scraper.py >> logs/cron.log 2>&1
-   
-   # Daily indexing at 1 AM
-   0 1 * * * cd /path/to/gpt-semantic-search/slack_scrape && pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
-   ```
-
-3. **Find your correct paths:**
-   - Project path: `pwd` (when in the project directory)
-   - Pixi path: `which pixi`
-
-4. **Example with full paths:**
-   ```bash
-   # Daily scraping at midnight
-   0 0 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_scraper.py >> logs/cron.log 2>&1
-   
-   # Daily indexing at 3 AM
-   0 3 * * * cd /Users/username/gpt-semantic-search/slack_scrape && /Users/username/.pixi/bin/pixi run python slack_daily_indexer.py >> logs/cron.log 2>&1
-   ```
+# Daily indexing - smart discovery of new data
+0 3 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_indexer.py >> logs/slack_indexer.log 2>&1
+```
    
 ### Update dependencies
 

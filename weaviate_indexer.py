@@ -1,6 +1,7 @@
 import sys
 import logging
 import warnings
+from datetime import datetime
 from typing import Any, Dict, List
 
 from llama_index.embeddings.openai import OpenAIEmbedding
@@ -61,6 +62,11 @@ NODE_SCHEMA: List[Dict] = [
         "dataType": ["text"],
         "description": "Data source for the source document",
         "tokenization": 'field'
+    },
+    {
+        "name": "scraped_at",
+        "dataType": ["number"],
+        "description": "Unix timestamp when this document was scraped"
     }
 ]
 
@@ -132,3 +138,55 @@ class Indexer():
         GPTVectorStoreIndex.from_documents(documents, storage_context=storage_context, service_context=service_context)
 
         logger.info(f"Completed indexing into '{class_prefix}_Node'")
+
+    def get_latest_timestamp(self, source: str = None) -> float:
+        """Query Weaviate for the most recent scraped_at timestamp.
+        
+        Args:
+            source: Optional source filter (e.g., "Slack"). If None, queries all sources.
+        
+        Returns:
+            Unix timestamp of the most recent document, or 0.0 if no documents found
+        """
+        client = weaviate.Client(self.weaviate_url)
+        
+        if not client.is_live():
+            logger.error(f"Weaviate is not live at {self.weaviate_url}")
+            return 0.0
+        
+        class_name = _class_name(self.class_prefix)
+        
+        try:
+            query = client.query.aggregate(class_name)
+            
+            if source:
+                query = query.with_where({
+                    "path": ["source"],
+                    "operator": "Equal",
+                    "valueText": source
+                })
+            
+            result = query.with_fields("scraped_at { maximum }").do()
+            
+            try:
+                max_timestamp = result["data"]["Aggregate"][class_name][0]["scraped_at"]["maximum"]
+                source_msg = f" for {source}" if source else ""
+                logger.info(f"Found latest timestamp{source_msg} in database: {max_timestamp} ({datetime.fromtimestamp(max_timestamp)})")
+                return float(max_timestamp)
+            except (KeyError, IndexError):  
+                source_msg = f" for {source}" if source else ""
+                logger.info(f"No documents{source_msg} found in database or no scraped_at timestamps")
+                return 0.0  
+                
+        except Exception as e:
+            source_msg = f" for {source}" if source else ""
+            logger.error(f"Error querying latest timestamp{source_msg}: {e}")
+            return 0.0
+
+    def get_latest_slack_timestamp(self) -> float:
+        """Query Weaviate for the most recent scraped_at timestamp for Slack documents.
+        
+        Returns:
+            Unix timestamp of the most recent Slack document scraping, or 0.0 if no documents found
+        """
+        return self.get_latest_timestamp(source="Slack")
