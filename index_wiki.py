@@ -9,7 +9,17 @@ import warnings
 
 import html2text
 from llama_index.core import Document
+#TODO read up ^ (if its chunking large docs automatically)
 from weaviate_indexer import Indexer
+
+# Modern RAG support
+try:
+    from modern_rag_integration import create_modern_rag_system, ModernRAGConfig
+    from chunking.advanced_chunkers import ContentType
+    MODERN_RAG_AVAILABLE = True
+except ImportError:
+    MODERN_RAG_AVAILABLE = False
+    logger.warning("Modern RAG not available - install modern components for enhanced features")
 
 warnings.simplefilter("ignore", ResourceWarning)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -71,19 +81,46 @@ def main():
     parser.add_argument('-c', '--class-prefix', type=str, default="Wiki", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
     parser.add_argument('-r', '--remove-existing', default=False, action=argparse.BooleanOptionalAction, help='Remove existing "<prefix>_Node" class in Weaviate before starting.')
     parser.add_argument('-d', '--debug', default=False, action=argparse.BooleanOptionalAction, help='Print debugging information, such as the message content.')
+    parser.add_argument('--modern-rag', default=False, action=argparse.BooleanOptionalAction, help='Use modern RAG features (advanced chunking, multi-vector embeddings)')
     args = parser.parse_args()
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
 
-    # Load the Slack archive from disk and process it into documents
+    # Load the wiki documents from disk and process them
     loader = ArchivedWikiLoader(args.input)
     documents = loader.load_all_documents()
     logger.info(f"Loaded {len(documents)} documents")
 
     # Index the documents in Weaviate
-    indexer = Indexer(args.weaviate_url, args.class_prefix, args.remove_existing)
-    indexer.index(documents)
+    if args.modern_rag and MODERN_RAG_AVAILABLE:
+        # Use modern RAG system
+        logger.info("Using modern RAG indexing with advanced chunking")
+        config = ModernRAGConfig(
+            weaviate_url=args.weaviate_url,
+            class_name=f"{args.class_prefix}_Node",
+            chunking_strategy="hierarchical",
+            enable_multi_vector=True
+        )
+        
+        modern_rag = create_modern_rag_system(**config.__dict__)
+        
+        # Create schema if removing existing
+        if args.remove_existing:
+            modern_rag.create_schema(delete_existing=True)
+        else:
+            modern_rag.create_schema(delete_existing=False)
+        
+        # Index with wiki content type for optimal chunking
+        modern_rag.index_documents(documents, content_type=ContentType.MARKDOWN)
+        
+    else:
+        # Use legacy indexer
+        if args.modern_rag and not MODERN_RAG_AVAILABLE:
+            logger.warning("Modern RAG requested but not available, falling back to legacy")
+            
+        indexer = Indexer(args.weaviate_url, args.class_prefix, args.remove_existing)
+        indexer.index(documents, content_type="wiki")
 
 if __name__ == '__main__':
     main()

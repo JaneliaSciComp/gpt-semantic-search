@@ -27,10 +27,45 @@ with col2:
     
 st.text_input("Weaviate Class Prefix", key="class_prefix")
 
-import streamlit as st
-import os
+
+# Testing Settings Section
+st.markdown("## Testing Settings")
+
+st.markdown("Configure testing and evaluation parameters.")
+
+col1, col2 = st.columns([1, 1])
+with col1:
+    st.markdown("**Test Configuration**")
+    st.checkbox(
+        "Enable Unit Testing",
+        value=True,
+        key="enable_unit_testing",
+        help="Enable the unit testing framework"
+    )
+    st.checkbox(
+        "Verbose Test Output",
+        value=False,
+        key="verbose_test_output",
+        help="Show detailed test results and logs"
+    )
+    
+with col2:
+    st.markdown("**Evaluation Settings**")
+    st.checkbox(
+        "Auto-run Tests",
+        value=False,
+        key="auto_run_tests",
+        help="Automatically run tests after configuration changes"
+    )
+    st.selectbox(
+        "Test Framework",
+        ["deepeval", "ragas", "custom"],
+        key="test_framework",
+        help="Choose the testing framework to use"
+    )
 
 import streamlit as st
+import os
 
 # if st.session_state["admin_toggle"]:
 #     # Pages you want to show in your custom navigation

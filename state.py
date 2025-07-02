@@ -1,6 +1,6 @@
 import streamlit as st
 
-PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query","survey_complete","response","response_error","db_id","last_processed_query"]
+PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query","survey_complete","response","response_error","db_id","last_processed_query","enable_query_caching","show_progress","debug_mode","enable_unit_testing","verbose_test_output","auto_run_tests","test_framework"]
 DEFAULT_CLASS_PREFIX = "Janelia"
 
 @st.cache_resource
@@ -29,7 +29,7 @@ def init_state():
     if "model" not in st.session_state:
         st.session_state.update({
             "model_options": get_models(),
-            "model": "gpt-4o",
+            "model": "gpt-4o-mini",
             # "model": "gpt-3.5-turbo",
             "search_alpha": 55,
             "num_results": 3,
@@ -45,7 +45,18 @@ def init_state():
             "db_id": None,
             "last_processed_query": "",
 
-            "admin_toggle": True
+            "admin_toggle": True,
+            
+            # Performance settings (kept minimal)
+            "enable_query_caching": True,
+            "show_progress": True,
+            "debug_mode": False,
+            
+            # Testing settings
+            "enable_unit_testing": True,
+            "verbose_test_output": False,
+            "auto_run_tests": False,
+            "test_framework": "deepeval"
             
         })
         #print("initialized session state: ",st.session_state)

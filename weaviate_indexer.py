@@ -11,6 +11,14 @@ from llama_index.core import StorageContext
 
 import weaviate
 
+# Modern RAG compatibility
+try:
+    from modern_rag_integration import create_janelia_adapter
+    from chunking.advanced_chunkers import ContentType
+    MODERN_RAG_AVAILABLE = True
+except ImportError:
+    MODERN_RAG_AVAILABLE = False
+
 warnings.simplefilter("ignore", ResourceWarning)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -96,13 +104,53 @@ def _class_name(class_prefix: str) -> str:
 
 class Indexer():
 
-    def __init__(self, weaviate_url, class_prefix, delete_database):
+    def __init__(self, weaviate_url, class_prefix, delete_database, use_modern_rag=False):
         self.weaviate_url = weaviate_url
         self.class_prefix = class_prefix
         self.delete_database = delete_database
+        self.use_modern_rag = use_modern_rag and MODERN_RAG_AVAILABLE
+        
+        # Initialize modern adapter if requested
+        if self.use_modern_rag:
+            try:
+                self.modern_adapter = create_janelia_adapter(
+                    weaviate_url=weaviate_url,
+                    class_prefix=class_prefix,
+                    enable_modern=True
+                )
+                logger.info("Modern RAG indexer initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize modern RAG, falling back to legacy: {e}")
+                self.use_modern_rag = False
 
-    def index(self, documents):
+    def index(self, documents, content_type="plain_text"):
+        """Index documents with optional modern RAG features."""
+        
+        # Use modern indexer if available
+        if self.use_modern_rag:
+            try:
+                # Map content type string to enum
+                content_type_mapping = {
+                    'slack': ContentType.SLACK,
+                    'wiki': ContentType.MARKDOWN,
+                    'web': ContentType.WEB,
+                    'code': ContentType.CODE,
+                    'markdown': ContentType.MARKDOWN,
+                    'plain_text': ContentType.PLAIN_TEXT
+                }
+                
+                content_enum = content_type_mapping.get(content_type, ContentType.PLAIN_TEXT)
+                
+                # Use modern indexing
+                self.modern_adapter.index_documents(documents, content_type=content_enum)
+                logger.info(f"Indexed {len(documents)} documents using modern RAG")
+                return
+                
+            except Exception as e:
+                logger.warning(f"Modern indexing failed, falling back to legacy: {e}")
+                self.use_modern_rag = False
 
+        # Legacy indexing code
         # Connect to Weaviate database
         client = weaviate.Client(self.weaviate_url)
 
