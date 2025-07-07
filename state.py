@@ -1,6 +1,6 @@
 import streamlit as st
 
-PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query","survey_complete","response","response_error","db_id","last_processed_query"]
+PERSIST_KEYS = ["model_options","model","search_alpha","num_results","temperature","class_prefix","query","survey_complete","response","response_error","db_id","last_processed_query","hyde_enabled"]
 DEFAULT_CLASS_PREFIX = "Janelia"
 
 @st.cache_resource
@@ -45,7 +45,10 @@ def init_state():
             "db_id": None,
             "last_processed_query": "",
 
-            "admin_toggle": True
+            "admin_toggle": True,
+            
+            # HyDE settings
+            "hyde_enabled": False
             
         })
         #print("initialized session state: ",st.session_state)
