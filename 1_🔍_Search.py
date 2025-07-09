@@ -8,16 +8,17 @@ import textwrap
 import logging
 import warnings
 from typing import Dict, List
-
+import time
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import Settings
 from llama_index.core import PromptHelper, GPTVectorStoreIndex
 from llama_index.llms.openai import OpenAI
 from llama_index.core import StorageContext
 from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.query_engine import RetrieverQueryEngine, TransformQueryEngine
 from llama_index.vector_stores.weaviate import WeaviateVectorStore
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
+from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 
 import weaviate
 import streamlit as st
@@ -158,6 +159,7 @@ def get_query_engine(_weaviate_client):
     temperature = st.session_state["temperature"] / 100.0
     search_alpha = st.session_state["search_alpha"] / 100.0
     num_results = st.session_state["num_results"]
+    hyde_enabled = st.session_state.get("hyde_enabled", False)
 
     logger.info("Getting query engine with parameters:")
     logger.info(f"  model: {model}")
@@ -165,6 +167,8 @@ def get_query_engine(_weaviate_client):
     logger.info(f"  temperature: {temperature}")
     logger.info(f"  search_alpha: {search_alpha}")
     logger.info(f"  num_results: {num_results}")
+    logger.info(f"  hyde_enabled: {hyde_enabled} (type: {type(hyde_enabled)})")
+    logger.info(f"  session_state.hyde_enabled: {st.session_state.get('hyde_enabled', 'NOT_SET')}")
 
     llm = OpenAI(model=model, temperature=temperature)
     embed_model = OpenAIEmbedding(model=EMBED_MODEL_NAME)
@@ -189,6 +193,17 @@ def get_query_engine(_weaviate_client):
 
     # construct query engine
     query_engine = RetrieverQueryEngine.from_args(retriever)
+    
+    # Apply HyDE transformation if enabled
+    if hyde_enabled:
+        try:
+            hyde_transform = HyDEQueryTransform(include_original=True)
+            query_engine = TransformQueryEngine(query_engine, hyde_transform)
+            logger.info("✓ HyDE query transformation applied successfully")
+        except Exception as e:
+            logger.warning(f"✗ Failed to apply HyDE transformation: {e}. Falling back to regular query engine.")
+    else:
+        logger.info("✓ Using regular query engine (HyDE disabled)")
 
     return query_engine
 
@@ -227,6 +242,13 @@ args = parser.parse_args()
 weaviate_client = get_weaviate_client(args.weaviate_url)
 
 st.sidebar.markdown(SIDEBAR_DESC)
+
+# Show HyDE status in sidebar
+if st.session_state.get("hyde_enabled", False):
+    st.sidebar.success("🔬 HyDE: Enabled")
+else:
+    st.sidebar.info("🔬 HyDE: Disabled")
+
 st.title("Ask JaneliaGPT")
 query = st.text_input("What would you like to ask?", '', key="query")
 
@@ -235,13 +257,22 @@ is_new_query = query and query != st.session_state.last_processed_query
 
 if is_new_query or st.button("Submit"):
     if query:  
+        hyde_enabled = st.session_state.get("hyde_enabled", False)
         logger.info(f"Query: {query}")
+        logger.info(f"HyDE enabled: {hyde_enabled}")
+        
+        start_time = time.time()
+        
         try:
             query_engine = get_query_engine(weaviate_client)
             slack_client = get_slack_client()
             
             # Use the cached response function to avoid regeneration
             msg = get_response(query_engine, slack_client, query)
+            
+            end_time = time.time()
+            response_time = end_time - start_time
+            logger.info(f"Query processed in {response_time:.2f} seconds (HyDE: {hyde_enabled})")
             
             # Only create a new log entry if this is truly a new query
             if query != st.session_state.last_processed_query:

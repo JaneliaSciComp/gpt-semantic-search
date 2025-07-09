@@ -13,6 +13,12 @@ the latency of the search.
 * The GPT model's **Temperature** controls its creativity. It's generally best to keep this low to avoid hallucination. 
 """
 
+HYDE_EXPLANATION = """
+* **HyDE (Hypothetical Document Embedding)** improves search quality by first generating a hypothetical document that answers 
+the query, then using that document's embedding for retrieval instead of the raw query. This can significantly improve results 
+for complex queries by creating more semantically relevant search vectors.
+"""
+
 st.markdown("# JaneliaGPT Settings")
 
 st.selectbox("Model", st.session_state["model_options"], key="model")
@@ -27,10 +33,12 @@ with col2:
     
 st.text_input("Weaviate Class Prefix", key="class_prefix")
 
-import streamlit as st
-import os
-
-import streamlit as st
+st.markdown("## HyDE Settings")
+col3, col4 = st.columns([1,1])
+with col3:
+    st.checkbox("Enable HyDE", key="hyde_enabled", help="Enable Hypothetical Document Embedding for improved search quality")
+with col4:
+    st.markdown(HYDE_EXPLANATION)
 
 # if st.session_state["admin_toggle"]:
 #     # Pages you want to show in your custom navigation
