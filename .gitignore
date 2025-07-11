@@ -173,4 +173,7 @@ cython_debug/
 # pixi environments
 .pixi
 *.egg-info
-CLAUDE.md 
+CLAUDE.md
+
+# SSL certificates and keys
+dhparam.pem 
