@@ -8,7 +8,11 @@ This service requires [Docker](https://docs.docker.com/get-docker/) to be instal
 
     docker compose up -d
 
-This will start both the Weaviate vector database, and the Streamlit webapp. You can then access the webapp at http://localhost:8501.
+This will start the Weaviate vector database, Streamlit webapp, and nginx reverse proxy. You can then access the webapp at:
+- **Local development**: http://localhost:8501 (direct Streamlit access)
+- **Production with nginx**: https://localhost:443 (SSL with nginx proxy)
+
+For production deployment on the cluster, the service will be available at https://search.int.janelia.org.
 
 ## Development
 
@@ -90,7 +94,7 @@ And then to open in JupyterLab:
 
 Build from this directory (setting a version number instead of "latest"):
 
-    docker build --no-cache . -t ghcr.io/janeliascicomp/gpt-semantic-search-web:latest
+    docker build --no-cache . -f docker/Dockerfile -t ghcr.io/janeliascicomp/gpt-semantic-search-web:latest
 
 Then push:
 
@@ -100,14 +104,47 @@ Once the upload is done, remember to update the version number in `docker-compos
 
 To rebuild the Slack bot:
 
-    docker build --no-cache . -f Dockerfile_slack -t ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest
+    docker build --no-cache . -f docker/Dockerfile_slack -t ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest
 
 ### Multi-arch builds
 
 To build the Slackbot container for both Linux and Mac:
 
     export VERSION=latest
-    docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f Dockerfile_slack .
+    docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f docker/Dockerfile_slack .
+
+### Docker Directory Structure
+
+All Docker-related files are now organized in the `docker/` directory:
+
+```
+docker/
+├── docker-compose.yml          # Standalone nginx deployment
+├── Dockerfile                  # Main web application container
+├── Dockerfile_slack           # Slack bot container
+├── nginx.conf                 # Nginx main configuration
+└── include/
+    ├── proxy_pass.conf        # Proxy configuration for Streamlit
+    └── ssl.conf               # SSL/TLS settings
+```
+
+### Production Deployment
+
+For production deployment with nginx reverse proxy:
+
+```bash
+# Set required environment variables for certificates and cache
+export CERT_DIR=/path/to/ssl/certificates
+export NGINX_CACHE_DIR=/path/to/nginx/cache
+export WEAVIATE_STORAGE_PATH=/path/to/weaviate/storage
+
+# Deploy all services including nginx
+docker compose up -d
+
+# Or deploy just nginx configuration for testing
+cd docker/
+docker compose up -d
+```
 
 
 ## Slack Scraping
