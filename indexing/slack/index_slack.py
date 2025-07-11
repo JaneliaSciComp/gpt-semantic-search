@@ -10,7 +10,7 @@ import warnings
 from decimal import Decimal
 
 from llama_index.core import Document
-from weaviate_indexer import Indexer
+from indexing.weaviate_indexer import Indexer
 
 warnings.simplefilter("ignore", ResourceWarning)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)

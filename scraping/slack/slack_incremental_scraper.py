@@ -32,7 +32,7 @@ def setup_logging() -> logging.Logger:
     return logging.getLogger("slack_scraper")
 
 
-def find_latest_successful_run(data_path: str = "data/slack") -> Optional[float]:
+def find_latest_successful_run(data_path: str = "../../data/slack") -> Optional[float]:
     """Find the most recent successful run timestamp."""
     if not os.path.exists(data_path):
         return None
@@ -277,7 +277,7 @@ def save_messages(messages: List[Dict[str, Any]], channel_name: str,
     # Enrich messages with user profile information
     enriched_messages = enrich_messages_with_user_profiles(messages, users)
     
-    data_base_path = "data/slack"
+    data_base_path = "../../data/slack"
     messages_by_date = organize_messages_by_date(enriched_messages)
     total_saved = 0
     
@@ -320,7 +320,7 @@ def save_messages(messages: List[Dict[str, Any]], channel_name: str,
 def save_metadata_files(users: List[Dict[str, Any]], channels: List[Dict[str, Any]], 
                        workspace_name: str, run_timestamp: int, logger: logging.Logger) -> None:
     """Save users.json and channels.json files."""
-    data_base_path = "data/slack"
+    data_base_path = "../../data/slack"
     export_dir = os.path.join(data_base_path, workspace_name, f"run_{run_timestamp}")
     os.makedirs(export_dir, exist_ok=True)
     
@@ -364,7 +364,7 @@ def save_metadata_files(users: List[Dict[str, Any]], channels: List[Dict[str, An
 
 def validate_run_success(workspace_name: str, run_timestamp: int) -> bool:
     """Validate that the scraping run completed successfully."""
-    folder_path = Path(f"data/slack/{workspace_name}/run_{run_timestamp}")
+    folder_path = Path(f"../../data/slack/{workspace_name}/run_{run_timestamp}")
     
     if not folder_path.exists():
         return False
@@ -397,7 +397,7 @@ def validate_run_success(workspace_name: str, run_timestamp: int) -> bool:
 def mark_run_status(workspace_name: str, run_timestamp: int, status: str, logger: logging.Logger) -> bool:
     """Mark the run with success or failed status."""
     current_folder = f"run_{run_timestamp}"
-    current_path = Path(f"data/slack/{workspace_name}/{current_folder}")
+    current_path = Path(f"../../data/slack/{workspace_name}/{current_folder}")
     
     if not current_path.exists():
         return False
@@ -409,7 +409,7 @@ def mark_run_status(workspace_name: str, run_timestamp: int, status: str, logger
     else:
         return False
     
-    new_path = Path(f"data/slack/{workspace_name}/{new_folder}")
+    new_path = Path(f"../../data/slack/{workspace_name}/{new_folder}")
     
     try:
         current_path.rename(new_path)
@@ -422,7 +422,7 @@ def mark_run_status(workspace_name: str, run_timestamp: int, status: str, logger
 
 def cleanup_failed_run(workspace_name: str, run_timestamp: int, logger: logging.Logger) -> None:
     """Delete a failed run folder entirely."""
-    folder_path = Path(f"data/slack/{workspace_name}/run_{run_timestamp}")
+    folder_path = Path(f"../../data/slack/{workspace_name}/run_{run_timestamp}")
     
     if folder_path.exists():
         try:

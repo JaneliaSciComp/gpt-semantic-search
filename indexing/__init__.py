@@ -1,0 +1,1 @@
+"""Indexing package for semantic search system."""

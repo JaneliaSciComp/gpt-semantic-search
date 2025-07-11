@@ -48,19 +48,23 @@ If you are at Janelia you can get data sources from shared storage:
 
 If you want to download the latest data from each source:
 
-1. Confluence Wiki - run `pixi run python download_wiki.py` to download the latest wiki pages to `./data/wiki`
+1. Confluence Wiki - run `pixi run python -m scraping.wiki.download_wiki` to download the latest wiki pages to `./data/wiki`
 2. Slack - export data from Slack using their [export tool](https://slack.com/help/articles/201658943-Export-your-workspace-data).
-3. Janelia.org - run the web crawling spider with `pixi run scrapy runspider spider.py`
+3. Janelia.org - run the web crawling spider with `pixi run scrapy runspider scraping/web/spider.py`
 
 ### Run indexing
 
 Add a wiki export:
 
-    pixi run ./index_wiki.py -i ./data/wiki -c Janelia
+    pixi run python -m indexing.wiki.index_wiki -i ./data/wiki -c Janelia
 
 Add the janelia.org web site:
 
-    pixi run ./index_web.py -i ./data/janelia.org -c Janelia
+    pixi run python -m indexing.web.index_web -i ./data/janelia.org -c Janelia
+
+Add a Slack export:
+
+    pixi run python -m indexing.slack.index_slack -i ./data/slack/slack_export_Janelia-Software_ALL -c Janelia
 
 
 ### Start semantic search webapp
@@ -120,10 +124,10 @@ For Slack scraping, you need a `SCRAPING_SLACK_USER_TOKEN` environment variable.
 
 ```bash
 # Daily scraping - automatically continues from last successful run
-0 0 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_scraper.py >> logs/slack_scraper.log 2>&1
+0 0 * * * cd /path/to/gpt-semantic-search && pixi run python -m scraping.slack.slack_incremental_scraper >> logs/slack_scraper.log 2>&1
 
 # Daily indexing - smart discovery of new data
-0 3 * * * cd /path/to/gpt-semantic-search && pixi run python slack_scrape/slack_incremental_indexer.py >> logs/slack_indexer.log 2>&1
+0 3 * * * cd /path/to/gpt-semantic-search && pixi run python -m indexing.slack.slack_incremental_indexer >> logs/slack_indexer.log 2>&1
 ```
    
 ### Update dependencies

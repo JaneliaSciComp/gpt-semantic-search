@@ -15,9 +15,7 @@ from typing import List, Dict, Any, Tuple
 
 from llama_index.core import Document
 
-# Add parent directory to path to import weaviate_indexer
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from weaviate_indexer import Indexer
+from indexing.weaviate_indexer import Indexer
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,7 +37,7 @@ def fix_text(text):
     return text.replace("\n\n+", "\n") if text else ""
 
 
-def find_folders_to_process(data_path: str = "data/slack", 
+def find_folders_to_process(data_path: str = "../../data/slack", 
                           indexer: Indexer = None, 
                           buffer_hours: float = 0.5) -> List[Tuple[str, str, float]]:
     """Find all successful folders that need indexing based on database state."""
@@ -85,7 +83,7 @@ def find_folders_to_process(data_path: str = "data/slack",
     return folders_to_process
 
 
-def find_failed_folders(data_path: str = "data/slack") -> List[Tuple[str, str, float]]:
+def find_failed_folders(data_path: str = "../../data/slack") -> List[Tuple[str, str, float]]:
     """Find all failed folders for retry."""
     if not os.path.exists(data_path):
         return []
@@ -110,7 +108,7 @@ def find_failed_folders(data_path: str = "data/slack") -> List[Tuple[str, str, f
 
 def mark_folder_status(workspace_name: str, folder_name: str, status: str, logger: logging.Logger) -> bool:
     """Mark folder with new status."""
-    current_path = Path(f"data/slack/{workspace_name}/{folder_name}")
+    current_path = Path(f"../../data/slack/{workspace_name}/{folder_name}")
     
     if not current_path.exists():
         logger.error(f"Folder does not exist: {current_path}")
@@ -134,7 +132,7 @@ def mark_folder_status(workspace_name: str, folder_name: str, status: str, logge
         logger.error(f"Unknown status: {status}")
         return False
     
-    new_path = Path(f"data/slack/{workspace_name}/{new_folder}")
+    new_path = Path(f"../../data/slack/{workspace_name}/{new_folder}")
     
     if current_path == new_path:
         return True
@@ -309,7 +307,7 @@ class SlackLoader:
 def process_folder(workspace_name: str, folder_name: str, weaviate_url: str, 
                   class_prefix: str, debug: bool) -> bool:
     """Process a single folder for indexing."""
-    folder_path = f"data/slack/{workspace_name}/{folder_name}"
+    folder_path = f"../../data/slack/{workspace_name}/{folder_name}"
     
     try:
         logger.info(f"Processing folder: {folder_name}")
@@ -375,7 +373,7 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--retry-only', action='store_true', help='Only retry failed folders')
     parser.add_argument('--buffer', type=float, default=0.5, help='Buffer time in hours for indexing cutoff')
-    parser.add_argument('--data-path', type=str, default="data/slack", help='Path to slack data directory')
+    parser.add_argument('--data-path', type=str, default="../../data/slack", help='Path to slack data directory')
     
     args = parser.parse_args()
 
