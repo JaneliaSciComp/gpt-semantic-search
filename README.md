@@ -14,6 +14,16 @@ This will start the Weaviate vector database, Streamlit webapp, and nginx revers
 
 For production deployment on the cluster, the service will be available at https://search.int.janelia.org.
 
+### SSL Certificate Setup
+
+If using nginx with SSL, you'll need to generate a Diffie-Hellman parameters file:
+
+    openssl dhparam -out docker/include/dhparam.pem 4096
+
+Set the required environment variables for SSL certificates:
+
+    export CERT_DIR=/path/to/ssl/certificates
+
 ## Development
 
 ### Install dependencies
