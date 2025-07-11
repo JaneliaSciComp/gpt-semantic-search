@@ -29,6 +29,20 @@ services:
       OPENAI_API_KEY:
       SLACK_TOKEN:
 
+  nginx:
+    image: nginx
+    container_name: gpt-semantic-search_nginx
+    restart: unless-stopped
+    depends_on:
+      - semantic-search
+    ports:
+      - 443:443
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/include:/etc/nginx/conf
+      - ${CERT_DIR}:/certs:ro
+      - ${NGINX_CACHE_DIR}:/var/cache/nginx
+
   slack-bot:
     image: ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:0.1.6
     restart: unless-stopped
@@ -42,6 +56,6 @@ services:
       - weaviate
 
 # To push an update to the docker image, run the following command and fill in the blanks:
-# docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-web:latest -f Dockerfile .
-# docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest -f Dockerfile_slack .
+# docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-web:latest -f docker/Dockerfile .
+# docker buildx build --push --build-arg GIT_TAG=latest --progress=plain --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:latest -f docker/Dockerfile_slack .
 
