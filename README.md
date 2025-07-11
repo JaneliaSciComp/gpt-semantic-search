@@ -123,31 +123,11 @@ To build the Slackbot container for both Linux and Mac:
     export VERSION=latest
     docker buildx build --build-arg $VERSION --platform linux/arm64,linux/amd64 --tag ghcr.io/janeliascicomp/gpt-semantic-search-slack-bot:$VERSION -f docker/Dockerfile_slack .
 
-### Docker Directory Structure
-
-All Docker-related files are now organized in the `docker/` directory:
-
-```
-docker/
-├── docker-compose.yml          # Standalone nginx deployment
-├── Dockerfile                  # Main web application container
-├── Dockerfile_slack           # Slack bot container
-├── nginx.conf                 # Nginx main configuration
-└── include/
-    ├── proxy_pass.conf        # Proxy configuration for Streamlit
-    └── ssl.conf               # SSL/TLS settings
-```
-
 ### Production Deployment
 
 For production deployment with nginx reverse proxy:
 
 ```bash
-# Set required environment variables for certificates and cache
-export CERT_DIR=/path/to/ssl/certificates
-export NGINX_CACHE_DIR=/path/to/nginx/cache
-export WEAVIATE_STORAGE_PATH=/path/to/weaviate/storage
-
 # Deploy all services including nginx
 docker compose up -d
 
