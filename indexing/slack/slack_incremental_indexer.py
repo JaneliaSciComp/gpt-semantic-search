@@ -17,8 +17,22 @@ from llama_index.core import Document
 
 from indexing.weaviate_indexer import Indexer
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logger = logging.getLogger(__name__)
+def setup_logging() -> logging.Logger:
+    os.makedirs("logs", exist_ok=True)
+    log_file = os.path.join("logs", f"slack_indexer_{datetime.now().strftime('%Y%m%d')}.log")
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, mode='a'),  # Append mode for daily logs
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    return logging.getLogger("slack_indexer")
+
+logger = setup_logging()
 
 SOURCE = "Slack"
 DOCUMENT_PAUSE_SECS = 300
@@ -317,6 +331,12 @@ def process_folder(workspace_name: str, folder_name: str, weaviate_url: str,
         logger.info(f"Loaded {len(documents)} documents")
 
         indexer = Indexer(weaviate_url, class_prefix, False) 
+        
+        # Log each document being indexed with preview
+        for i, doc in enumerate(documents, 1):
+            text_preview = doc.text[:20].replace('\n', ' ') if doc.text else ""
+            logger.info(f"Indexing document {i}/{len(documents)}: '{text_preview}...' (source: {doc.extra_info.get('source', 'Unknown')})")
+        
         indexer.index(documents)
 
         logger.info(f"Successfully indexed {len(documents)} documents")
