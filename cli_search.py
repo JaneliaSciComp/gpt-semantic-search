@@ -40,7 +40,6 @@ EMBED_MODEL_NAME = "text-embedding-3-large"
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
-SURVEY_CLASS = "SurveyResponses"
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING)
@@ -374,7 +373,7 @@ class CLISearchApp:
 
 def main():
     parser = argparse.ArgumentParser(description='CLI for JaneliaGPT semantic search')
-    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8777",
+    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080",
                         help='Weaviate database URL')
     parser.add_argument('-q', '--query', type=str, help='Search query (non-interactive mode)')
     parser.add_argument('-m', '--model', type=str, default="gpt-4o", help='OpenAI model to use')
