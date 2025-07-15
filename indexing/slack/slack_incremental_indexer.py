@@ -30,7 +30,7 @@ def setup_logging() -> logging.Logger:
         ]
     )
     
-    return logging.getLogger("slack_indexer")
+    return logging.getLogger(__name__)
 
 logger = setup_logging()
 
