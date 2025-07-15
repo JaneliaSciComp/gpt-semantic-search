@@ -18,13 +18,13 @@ from slack_sdk.errors import SlackApiError
 
 def setup_logging() -> logging.Logger:
     os.makedirs("logs", exist_ok=True)
-    log_file = os.path.join("logs", f"slack_scraper_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    log_file = os.path.join("logs", f"slack_scraper_{datetime.now().strftime('%Y%m%d')}.log")
     
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_file),
+            logging.FileHandler(log_file, mode='a'),  # Append mode for daily logs
             logging.StreamHandler(sys.stdout)
         ]
     )
