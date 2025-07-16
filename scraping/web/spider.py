@@ -13,6 +13,7 @@ from scrapy.selector import Selector
 
 import bs4 as bs
 import html2text
+from docling.document_converter import DocumentConverter
 
 URL_PREFIX = "https://www.janelia.org"
 OUTPUT_PATH = "./data/janelia.org"
@@ -23,6 +24,9 @@ h = html2text.HTML2Text()
 h.ignore_links = True
 h.images_to_alt = True
 h.single_line_break = True
+
+# Initialize Docling converter for PDF processing
+docling_converter = DocumentConverter()
 
 class MySpider(CrawlSpider):
     """ Spider that crawls janelial.org and saves content 
@@ -57,6 +61,17 @@ class MySpider(CrawlSpider):
 
         return path
 
+    def process_pdf_content(self, response):
+        """Process PDF content using Docling"""
+        try:
+            # Convert PDF bytes to Docling document
+            result = docling_converter.convert_bytes(response.body)
+            # Export to markdown format
+            markdown_content = result.document.export_to_markdown()
+            return markdown_content
+        except Exception as e:
+            print(f"Error processing PDF with Docling: {e}")
+            return None
 
     def parse_item(self, response):
 
@@ -68,10 +83,27 @@ class MySpider(CrawlSpider):
 
         headers = response.headers.to_unicode_dict()
 
-        # TODO: add support for non-HTML content
+        # Handle different content types
         content_type = str(headers['Content-Type'])
-        if not content_type.startswith('text/html'):
-            print(f"Content type {content_type} is not HTML: {url}")
+        
+        if content_type.startswith('application/pdf'):
+            # Process PDF content with Docling
+            content = self.process_pdf_content(response)
+            if not content:
+                print(f"Failed to process PDF: {url}")
+                return
+            
+            # Save PDF content directly without link extraction
+            filename = OUTPUT_PATH + path
+            with Path(filename) as p:
+                p.mkdir(parents=True, exist_ok=True)
+                c = p / "content"
+                c.write_text(url + "\n" + content)
+                print(f"Saved PDF {path}")
+            return
+            
+        elif not content_type.startswith('text/html'):
+            print(f"Content type {content_type} is not supported: {url}")
             return
 
         # Recurse into all links on the page
