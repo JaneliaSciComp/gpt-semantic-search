@@ -4,6 +4,8 @@ from .pypdf2_scraper import PyPDF2Scraper
 from .pymupdf_scraper import PyMuPDFScraper
 from .pdfplumber_scraper import PDFPlumberScraper
 from .pdfminer_scraper import PDFMinerScraper
+from .llamaparse_scraper import LlamaParseScraper
+from .unstructured_scraper import UnstructuredScraper
 
 __all__ = [
     'BasePDFScraper',
@@ -12,4 +14,6 @@ __all__ = [
     'PyMuPDFScraper',
     'PDFPlumberScraper',
     'PDFMinerScraper',
+    'LlamaParseScraper',
+    'UnstructuredScraper',
 ]
