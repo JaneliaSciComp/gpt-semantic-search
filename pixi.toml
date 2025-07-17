@@ -29,4 +29,18 @@ slack-sdk = "==3.27.1"
 scrapy = "==2.11.1"
 html2text = "==2024.2.26"
 slack-bolt = "*"
+
+[environments]
+pdf-testing = ["pdf-testing"]
+
+[feature.pdf-testing.dependencies]
+cmake = "*"
+
+[feature.pdf-testing.pypi-dependencies]
 docling = "*"
+PyPDF2 = "*"
+PyMuPDF = "*"
+pdfplumber = "*"
+pdfminer-six = "*"
+llama-parse = "*"
+unstructured = {version = "*", extras = ["pdf"]}
