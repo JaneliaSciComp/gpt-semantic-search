@@ -28,24 +28,24 @@ export LLAMA_CLOUD_API_KEY="your_llamaparse_api_key"  # For LlamaParse
 
 **Command Line Usage (Recommended):**
 ```bash
-# Activate the environment
+# Method 1: Activate the pdf-testing environment first
 pixi shell -e pdf-testing
-
-# List available scrapers
 python run_pipeline.py --list-scrapers
+python run_pipeline.py  # Uses default test_pdfs/ directory
 
-# Test all PDFs with all scrapers
-python run_pipeline.py --pdf-dir test_pdfs/
+# Method 2: Run directly with the pdf-testing environment
+pixi run -e pdf-testing python run_pipeline.py --list-scrapers
+pixi run -e pdf-testing python run_pipeline.py
 
-# Test with specific scrapers only
-python run_pipeline.py --scrapers docling pymupdf unstructured --pdf-dir test_pdfs/
-
-# Test a single PDF
-python run_pipeline.py --single-pdf test_pdfs/document.pdf --scrapers docling
-
-# Skip Weaviate indexing for faster testing
-python run_pipeline.py --pdf-dir test_pdfs/ --no-index
+# Other examples (with pdf-testing environment):
+pixi run -e pdf-testing python run_pipeline.py --scrapers docling pymupdf unstructured
+pixi run -e pdf-testing python run_pipeline.py --pdf-dir my_pdfs/
+pixi run -e pdf-testing python run_pipeline.py --single-pdf test_pdfs/document.pdf --scrapers docling
+pixi run -e pdf-testing python run_pipeline.py --no-index
+pixi run -e pdf-testing python run_pipeline.py --output-dir my_results/
 ```
+
+**⚠️ Important**: You MUST use the `pdf-testing` environment to have all the PDF scraper dependencies available.
 
 **Python API Usage:**
 ```python

@@ -42,14 +42,9 @@ class PDFScraperPipeline:
         """Initialize PDF scrapers (all available or specified subset)"""
         scrapers = []
         
-        # Mapping of scraper names to classes
+        # Mapping of scraper names to classes (temporarily limited to docling and unstructured)
         scraper_map = {
             'docling': DoclingPDFScraper,
-            'pypdf2': PyPDF2Scraper,
-            'pymupdf': PyMuPDFScraper,
-            'pdfplumber': PDFPlumberScraper,
-            'pdfminer': PDFMinerScraper,
-            'llamaparse': LlamaParseScraper,
             'unstructured': UnstructuredScraper,
         }
         
@@ -79,7 +74,7 @@ class PDFScraperPipeline:
     
     def list_available_scrapers(self) -> List[str]:
         """List all available scraper names"""
-        return ['docling', 'pypdf2', 'pymupdf', 'pdfplumber', 'pdfminer', 'llamaparse', 'unstructured']
+        return ['docling', 'unstructured']
     
     def test_pdf(self, pdf_path: str) -> Dict[str, Any]:
         """Test a single PDF with initialized scrapers"""
