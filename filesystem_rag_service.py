@@ -281,13 +281,32 @@ class FilesystemRAGService:
             try:
                 logger.info(f"Processing file change: {file_path}")
                 
-                # Load the single file
+                # Import the file processor
+                from scraping.filesystem.file_processor import process_file, is_supported_file_type
+                
+                # Check if file is supported
+                if not is_supported_file_type(file_path):
+                    logger.debug(f"Skipping unsupported file type: {file_path}")
+                    return
+                
+                # Extract text content
+                text_content = process_file(file_path)
+                
+                if not text_content or not text_content.strip():
+                    logger.warning(f"No content extracted from: {file_path}")
+                    return
+                
+                # Log first 20 chars being indexed for debugging
+                preview = text_content[:20].replace('\n', '\\n').replace('\r', '\\r')
+                logger.info(f"INDEXING {file_path.name}: First 20 chars = '{preview}'")
+                
+                # Create document
                 loader = FilesystemLoader(file_path.parent, debug=self.debug)
                 doc = loader.create_document(
                     file_path,
                     file_path.name,
                     f"file://{file_path.absolute()}",
-                    loader.load_all_documents()[0].text if loader.load_all_documents() else ""
+                    text_content
                 )
                 
                 # Index the document
