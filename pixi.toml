@@ -32,3 +32,28 @@ slack-bolt = "*"
 # docling = "*"  # Temporarily disabled due to cmake requirement
 watchfiles = "*"
 unstructured = "*"
+watchfiles = ">=0.18.0"
+chardet = ">=5.0.0"
+pytest = ">=7.0.0"
+
+[environments]
+docling-env = ["docling-env"]
+unstructured-env = ["unstructured-env"]
+
+[feature.docling-env.pypi-dependencies]
+docling = ">=1.0.0, <2.0.0"
+
+[feature.unstructured-env.dependencies]
+qpdf = "*"
+poppler = "*"
+tesseract = "*"
+libmagic = "*"
+pkg-config = "*"
+pikepdf = "*"
+
+[feature.unstructured-env.pypi-dependencies]
+unstructured = { version = ">=0.18.9, <0.19", extras = ["pdf"] }
+
+[tasks]
+eval-docling = { cmd = "python run_pipeline.py --scraper docling", cwd = "pdf_scraper_testing" }
+eval-unstructured = { cmd = "python run_pipeline.py --scraper unstructured", cwd = "pdf_scraper_testing" }
