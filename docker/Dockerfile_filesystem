@@ -1,0 +1,27 @@
+FROM python:3.9-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pixi
+RUN curl -fsSL https://pixi.sh/install.sh | bash
+ENV PATH="/root/.pixi/bin:$PATH"
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY pixi.toml pixi.lock ./
+COPY scraping/ scraping/
+COPY filesystem_watcher.py test_filesystem_monitor.py ./
+
+# Install dependencies
+RUN pixi install
+
+# Create test directory
+RUN mkdir -p test_files logs
+
+# Run tests
+CMD ["pixi", "run", "python", "test_filesystem_monitor.py"]
