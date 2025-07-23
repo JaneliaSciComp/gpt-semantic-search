@@ -1,10 +1,10 @@
 """
-Filesystem monitoring and scraping module for comprehensive file processing.
+Filesystem monitoring and scraping module for comprehensive file processing using Docling.
 
 This module provides:
 1. High-performance filesystem monitoring using watchfiles for real-time updates
-2. Universal file scraping for 59+ file types using unstructured and native processing
-3. Comprehensive file processing capabilities for RAG applications
+2. Universal file scraping for 45+ file types using Docling AI-powered processing and native methods
+3. Comprehensive file processing capabilities for RAG applications with superior accuracy
 """
 
 from .filesystem_monitor import (
@@ -23,7 +23,7 @@ from .file_processor import (
     get_processing_method,
     is_supported_file_type,
     ALL_SUPPORTED_EXTENSIONS,
-    UNSTRUCTURED_EXTENSIONS,
+    DOCLING_EXTENSIONS,
     CODE_EXTENSIONS,
     TEXT_EXTENSIONS,
     JUPYTER_EXTENSIONS,
@@ -49,7 +49,7 @@ __all__ = [
     "get_processing_method",
     "is_supported_file_type",
     "ALL_SUPPORTED_EXTENSIONS",
-    "UNSTRUCTURED_EXTENSIONS",
+    "DOCLING_EXTENSIONS",
     "CODE_EXTENSIONS", 
     "TEXT_EXTENSIONS",
     "JUPYTER_EXTENSIONS",

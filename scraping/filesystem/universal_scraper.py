@@ -1,9 +1,9 @@
 """
-Universal file scraper for comprehensive text extraction.
+Universal file scraper for comprehensive text extraction using Docling.
 
 This module provides a unified interface for extracting text from various file types
-using different processing methods (unstructured, native reading, etc.).
-Follows the existing scraper pattern in this codebase.
+using Docling for document processing and native reading for code/text files.
+Docling provides superior document processing with AI-powered layout analysis.
 """
 
 import logging
@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 
 class UniversalFileScraper:
     """
-    Universal file scraper that can extract text from 59+ file types.
+    Universal file scraper that can extract text from 45+ file types using Docling.
     
-    Supports documents (PDF, Word, PowerPoint), code files (Python, Java, etc.),
-    text files (Markdown, JSON, XML), Jupyter notebooks, and images with OCR.
+    Supports documents (PDF, Word, Excel, PowerPoint), code files (Python, Java, etc.),
+    text files (Markdown, JSON, XML), Jupyter notebooks, and images with OCR via Docling.
     """
     
     def __init__(self, debug: bool = False):
@@ -41,7 +41,7 @@ class UniversalFileScraper:
         
         if self.debug:
             logger.setLevel(logging.DEBUG)
-            logger.debug(f"Initialized scraper with {len(self.supported_extensions)} supported extensions")
+            logger.debug(f"Initialized Docling-based scraper with {len(self.supported_extensions)} supported extensions")
     
     def get_supported_extensions(self) -> set:
         """Get all supported file extensions."""
@@ -92,6 +92,11 @@ class UniversalFileScraper:
         try:
             # Extract text using the file processor
             text_content = process_file(file_path)
+            
+            # Log the exact scraped content for debugging
+            logger.info(f"SCRAPED CONTENT from {file_path.name}:")
+            logger.info(f"Full text content:\n{text_content}")
+            logger.info(f"--- END SCRAPED CONTENT ---")
             
             # Create metadata
             metadata = {

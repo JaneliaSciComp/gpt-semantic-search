@@ -1,9 +1,9 @@
 """
-Enhanced file processing module for comprehensive text extraction.
+Enhanced file processing module using Docling for comprehensive text extraction.
 
-This module provides advanced text extraction capabilities for a wide range of file types,
-optimized for RAG applications. It uses unstructured for complex documents and native
-reading for code files and simple text formats.
+This module provides advanced text extraction capabilities optimized for RAG applications.
+It uses Docling for document processing and native reading for code files and simple text formats.
+Docling offers superior document processing with AI-powered layout analysis and OCR capabilities.
 """
 
 import json
@@ -17,13 +17,15 @@ import chardet
 logger = logging.getLogger(__name__)
 
 # Supported file extensions organized by processing method
-UNSTRUCTURED_EXTENSIONS: Set[str] = {
-    # Documents
-    '.pdf', '.docx', '.doc', '.pptx', '.ppt',
-    # Web and email
-    '.html', '.htm', '.eml',
-    # Images with text (requires OCR capabilities)
-    '.png', '.jpg', '.jpeg', '.tiff', '.bmp'
+DOCLING_EXTENSIONS: Set[str] = {
+    # Documents (Docling's core strength)
+    '.pdf', '.docx', '.xlsx', '.pptx',
+    # Web and markup formats
+    '.html', '.htm', '.md', '.adoc',
+    # Data formats
+    '.csv', '.json',
+    # Images with OCR capabilities
+    '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.webp'
 }
 
 CODE_EXTENSIONS: Set[str] = {
@@ -33,15 +35,15 @@ CODE_EXTENSIONS: Set[str] = {
     '.php', '.swift', '.kt', '.scala', '.clj', '.hs',
     '.r', '.m', '.sh', '.bash', '.ps1', '.bat',
     # Configuration and data
-    '.json', '.xml', '.yaml', '.yml', '.toml', '.ini',
+    '.xml', '.yaml', '.yml', '.toml', '.ini',
     '.cfg', '.conf', '.properties', '.env'
 }
 
 TEXT_EXTENSIONS: Set[str] = {
     # Plain text and documentation
-    '.txt', '.md', '.rst', '.tex', '.org',
+    '.txt', '.rst', '.tex', '.org',
     # Data files
-    '.csv', '.tsv', '.log',
+    '.tsv', '.log',
     # Markup
     '.xml', '.svg'
 }
@@ -50,29 +52,26 @@ JUPYTER_EXTENSIONS: Set[str] = {
     '.ipynb'
 }
 
-# Combined set of all supported extensions
+# All supported extensions
 ALL_SUPPORTED_EXTENSIONS: Set[str] = (
-    UNSTRUCTURED_EXTENSIONS | CODE_EXTENSIONS | TEXT_EXTENSIONS | JUPYTER_EXTENSIONS
+    DOCLING_EXTENSIONS | CODE_EXTENSIONS | TEXT_EXTENSIONS | JUPYTER_EXTENSIONS
 )
 
-# MIME type mappings for fallback detection
+# MIME type to extension mapping for docling-supported formats
 MIME_TO_EXTENSION: Dict[str, str] = {
     'application/pdf': '.pdf',
-    'application/msword': '.doc',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
     'text/html': '.html',
-    'text/plain': '.txt',
     'text/markdown': '.md',
-    'application/json': '.json',
-    'application/xml': '.xml',
-    'text/xml': '.xml',
     'text/csv': '.csv',
-    'application/x-python': '.py',
-    'text/x-python': '.py',
-    'application/javascript': '.js',
-    'text/javascript': '.js',
+    'application/json': '.json',
+    'image/png': '.png',
+    'image/jpeg': '.jpg',
+    'image/tiff': '.tiff',
+    'image/bmp': '.bmp',
+    'image/webp': '.webp'
 }
 
 
@@ -84,7 +83,7 @@ def detect_encoding(file_path: Path) -> str:
         file_path: Path to the file
         
     Returns:
-        Detected encoding string
+        Detected encoding or 'utf-8' as fallback
     """
     try:
         with open(file_path, 'rb') as f:
@@ -140,43 +139,165 @@ def is_supported_file_type(file_path: Path) -> bool:
     if extension in ALL_SUPPORTED_EXTENSIONS:
         return True
     
-    # Fallback to MIME type detection
+    # Check by MIME type for files without clear extensions
     mime_extension = get_file_type_by_mime(file_path)
-    return mime_extension is not None
+    if mime_extension and mime_extension in ALL_SUPPORTED_EXTENSIONS:
+        return True
+    
+    return False
 
 
-def process_with_unstructured(file_path: Path) -> str:
+def get_processing_method(file_path: Path) -> str:
     """
-    Process complex documents using unstructured library.
+    Determine the processing method for a file.
     
     Args:
         file_path: Path to the file
         
     Returns:
+        Processing method name
+    """
+    extension = file_path.suffix.lower()
+    
+    if extension in DOCLING_EXTENSIONS:
+        return "docling"
+    elif extension in CODE_EXTENSIONS:
+        return "native_code"
+    elif extension in TEXT_EXTENSIONS:
+        return "native_text"
+    elif extension in JUPYTER_EXTENSIONS:
+        return "jupyter"
+    else:
+        # Check MIME type
+        mime_extension = get_file_type_by_mime(file_path)
+        if mime_extension in DOCLING_EXTENSIONS:
+            return "docling"
+        return "unknown"
+
+
+def get_supported_extensions() -> Set[str]:
+    """
+    Get all supported file extensions.
+    
+    Returns:
+        Set of supported file extensions
+    """
+    return ALL_SUPPORTED_EXTENSIONS.copy()
+
+
+def process_docling_file(file_path: Path) -> str:
+    """
+    Process a file using Docling for text extraction.
+    
+    Args:
+        file_path: Path to the file to process
+        
+    Returns:
         Extracted text content
+        
+    Raises:
+        ImportError: If docling is not available
+        RuntimeError: If processing fails
     """
     try:
-        from unstructured.partition.auto import partition
+        from docling.document_converter import DocumentConverter
+        from docling.datamodel.document import DocumentConversionInput
         
-        # Partition the document
-        elements = partition(filename=str(file_path))
+        logger.debug(f"Processing with Docling: {file_path}")
         
-        # Extract text from elements and combine
-        text_content = []
-        for element in elements:
-            if hasattr(element, 'text') and element.text.strip():
-                text_content.append(element.text.strip())
+        # Initialize Docling converter
+        converter = DocumentConverter()
         
-        # Join with double newlines to preserve semantic separation
-        combined_text = '\n\n'.join(text_content)
+        # Create proper DocumentConversionInput object
+        input_obj = DocumentConversionInput.from_paths([file_path])
+        result_generator = converter.convert(input_obj)
         
-        logger.info(f"Extracted {len(combined_text)} characters from {file_path.name} using unstructured")
-        return combined_text
+        # Get the first (and only) result from the generator  
+        result = next(result_generator)
+        
+        # Use the render_as_markdown method
+        text_content = result.render_as_markdown()
+        
+        if not text_content or not text_content.strip():
+            logger.warning(f"Empty content extracted by Docling from {file_path}")
+            return ""
+        
+        logger.debug(f"Docling extracted {len(text_content)} characters from {file_path}")
+        return text_content.strip()
         
     except ImportError:
-        raise ImportError("unstructured library is required for processing this file type")
+        raise ImportError("Docling library is required for processing this file type. Install with: pip install docling")
     except Exception as e:
-        raise RuntimeError(f"Failed to process {file_path} with unstructured: {e}")
+        logger.error(f"Docling processing failed for {file_path}: {e}")
+        raise RuntimeError(f"Failed to process {file_path} with Docling: {e}")
+
+
+def process_native_text_file(file_path: Path) -> str:
+    """
+    Process plain text files using native Python reading.
+    
+    Args:
+        file_path: Path to the text file
+        
+    Returns:
+        File content as string
+        
+    Raises:
+        RuntimeError: If reading fails
+    """
+    try:
+        encoding = detect_encoding(file_path)
+        logger.debug(f"Reading text file with encoding {encoding}: {file_path}")
+        
+        with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+            content = f.read()
+        
+        if not content.strip():
+            logger.warning(f"Empty content in text file: {file_path}")
+            return ""
+        
+        logger.debug(f"Read {len(content)} characters from {file_path}")
+        return content.strip()
+        
+    except Exception as e:
+        logger.error(f"Failed to read text file {file_path}: {e}")
+        raise RuntimeError(f"Failed to read text file {file_path}: {e}")
+
+
+def process_native_code_file(file_path: Path) -> str:
+    """
+    Process code files using native Python reading with syntax awareness.
+    
+    Args:
+        file_path: Path to the code file
+        
+    Returns:
+        File content as string with metadata
+        
+    Raises:
+        RuntimeError: If reading fails
+    """
+    try:
+        encoding = detect_encoding(file_path)
+        logger.debug(f"Reading code file with encoding {encoding}: {file_path}")
+        
+        with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+            content = f.read()
+        
+        if not content.strip():
+            logger.warning(f"Empty content in code file: {file_path}")
+            return ""
+        
+        # Add file type context for better RAG performance
+        file_type = file_path.suffix.lower().lstrip('.')
+        enhanced_content = f"File: {file_path.name} (Type: {file_type})\n\n{content}"
+        
+        logger.debug(f"Read {len(content)} characters from code file {file_path}")
+        return enhanced_content.strip()
+        
+    except Exception as e:
+        logger.error(f"Failed to read code file {file_path}: {e}")
+        raise RuntimeError(f"Failed to read code file {file_path}: {e}")
 
 
 def process_jupyter_notebook(file_path: Path) -> str:
@@ -187,17 +308,22 @@ def process_jupyter_notebook(file_path: Path) -> str:
         file_path: Path to the .ipynb file
         
     Returns:
-        Extracted text content from cells
+        Combined content from all cells
+        
+    Raises:
+        RuntimeError: If processing fails
     """
     try:
-        encoding = detect_encoding(file_path)
-        with open(file_path, 'r', encoding=encoding) as f:
+        logger.debug(f"Processing Jupyter notebook: {file_path}")
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
             notebook = json.load(f)
         
-        text_content = []
+        content_parts = [f"Jupyter Notebook: {file_path.name}\n"]
         
-        for cell in notebook.get('cells', []):
-            cell_type = cell.get('cell_type', '')
+        cells = notebook.get('cells', [])
+        for i, cell in enumerate(cells):
+            cell_type = cell.get('cell_type', 'unknown')
             source = cell.get('source', [])
             
             if isinstance(source, list):
@@ -206,167 +332,109 @@ def process_jupyter_notebook(file_path: Path) -> str:
                 cell_content = str(source)
             
             if cell_content.strip():
-                if cell_type == 'markdown':
-                    text_content.append(f"# Markdown Cell\n{cell_content}")
-                elif cell_type == 'code':
-                    text_content.append(f"# Code Cell\n{cell_content}")
-                else:
-                    text_content.append(cell_content)
+                content_parts.append(f"\n--- Cell {i+1} ({cell_type}) ---\n{cell_content}")
         
-        combined_text = '\n\n'.join(text_content)
-        logger.info(f"Extracted {len(combined_text)} characters from Jupyter notebook {file_path.name}")
-        return combined_text
+        combined_content = '\n'.join(content_parts)
+        
+        if not combined_content.strip():
+            logger.warning(f"No content extracted from Jupyter notebook: {file_path}")
+            return ""
+        
+        logger.debug(f"Extracted {len(combined_content)} characters from Jupyter notebook {file_path}")
+        return combined_content.strip()
         
     except Exception as e:
+        logger.error(f"Failed to process Jupyter notebook {file_path}: {e}")
         raise RuntimeError(f"Failed to process Jupyter notebook {file_path}: {e}")
-
-
-def process_text_file(file_path: Path) -> str:
-    """
-    Process plain text, code, and structured data files.
-    
-    Args:
-        file_path: Path to the file
-        
-    Returns:
-        File content as string
-    """
-    try:
-        encoding = detect_encoding(file_path)
-        with open(file_path, 'r', encoding=encoding) as f:
-            content = f.read()
-        
-        logger.info(f"Read {len(content)} characters from {file_path.name}")
-        return content
-        
-    except UnicodeDecodeError as e:
-        logger.warning(f"Unicode decode error for {file_path}, trying latin-1: {e}")
-        try:
-            with open(file_path, 'r', encoding='latin-1') as f:
-                content = f.read()
-            logger.info(f"Successfully read {len(content)} characters from {file_path.name} using latin-1")
-            return content
-        except Exception as fallback_e:
-            raise RuntimeError(f"Failed to read {file_path} with multiple encodings: {fallback_e}")
-    except Exception as e:
-        raise RuntimeError(f"Failed to read text file {file_path}: {e}")
 
 
 def process_file(file_path: Path) -> str:
     """
-    Process a file and extract its text content based on file type.
+    Process a file and extract text content using the appropriate method.
     
-    This function determines the file type by extension or MIME type and uses the
-    appropriate processing method:
-    - Unstructured library for complex documents (PDFs, Office docs, HTML, etc.)
-    - Native text reading for code files and plain text
-    - Special handling for Jupyter notebooks
+    This is the main entry point for file processing that determines the best
+    processing method based on file type and delegates to specialized processors.
     
     Args:
         file_path: Path to the file to process
         
     Returns:
-        Extracted text content as string
+        Extracted text content
         
     Raises:
-        FileNotFoundError: If the file doesn't exist
-        RuntimeError: If processing fails
         ValueError: If file type is not supported
+        RuntimeError: If processing fails
     """
     if not file_path.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
+        raise ValueError(f"File does not exist: {file_path}")
     
-    if not file_path.is_file():
-        raise ValueError(f"Path is not a file: {file_path}")
+    if not is_supported_file_type(file_path):
+        raise ValueError(f"Unsupported file type: {file_path.suffix}")
     
-    # Get file extension
-    extension = file_path.suffix.lower()
-    
-    # If extension is not recognized, try MIME type detection
-    if extension not in ALL_SUPPORTED_EXTENSIONS:
-        mime_extension = get_file_type_by_mime(file_path)
-        if mime_extension:
-            extension = mime_extension
-        else:
-            raise ValueError(
-                f"Unsupported file type: {extension}. "
-                f"Supported extensions: {', '.join(sorted(ALL_SUPPORTED_EXTENSIONS))}"
-            )
-    
-    logger.info(f"Processing {file_path.name} as {extension} file")
+    processing_method = get_processing_method(file_path)
+    logger.debug(f"Processing {file_path} using method: {processing_method}")
     
     try:
-        # Route to appropriate processor
-        if extension in JUPYTER_EXTENSIONS:
+        if processing_method == "docling":
+            return process_docling_file(file_path)
+        elif processing_method == "native_text":
+            return process_native_text_file(file_path)
+        elif processing_method == "native_code":
+            return process_native_code_file(file_path)
+        elif processing_method == "jupyter":
             return process_jupyter_notebook(file_path)
-        elif extension in UNSTRUCTURED_EXTENSIONS:
-            return process_with_unstructured(file_path)
-        elif extension in CODE_EXTENSIONS or extension in TEXT_EXTENSIONS:
-            return process_text_file(file_path)
         else:
-            # This shouldn't happen if our logic is correct
-            raise ValueError(f"No processor available for extension: {extension}")
+            raise ValueError(f"Unknown processing method: {processing_method}")
             
     except Exception as e:
-        logger.error(f"Failed to process {file_path}: {e}")
+        logger.error(f"Failed to process file {file_path}: {e}")
         raise
 
 
-def get_supported_extensions() -> Set[str]:
+def get_file_stats() -> Dict[str, Any]:
     """
-    Get the complete set of supported file extensions.
+    Get statistics about supported file types and processing methods.
     
     Returns:
-        Set of supported file extensions
+        Dictionary with file processing statistics
     """
-    return ALL_SUPPORTED_EXTENSIONS.copy()
+    return {
+        'total_supported_extensions': len(ALL_SUPPORTED_EXTENSIONS),
+        'docling_extensions': len(DOCLING_EXTENSIONS),
+        'code_extensions': len(CODE_EXTENSIONS),
+        'text_extensions': len(TEXT_EXTENSIONS),
+        'jupyter_extensions': len(JUPYTER_EXTENSIONS),
+        'processing_methods': {
+            'docling': list(DOCLING_EXTENSIONS),
+            'native_code': list(CODE_EXTENSIONS),
+            'native_text': list(TEXT_EXTENSIONS),
+            'jupyter': list(JUPYTER_EXTENSIONS)
+        }
+    }
 
 
-def get_processing_method(file_path: Path) -> str:
-    """
-    Determine which processing method will be used for a file.
+if __name__ == "__main__":
+    # Demo/test functionality
+    import sys
     
-    Args:
-        file_path: Path to the file
+    if len(sys.argv) != 2:
+        print("Usage: python file_processor.py <file_path>")
+        sys.exit(1)
+    
+    file_path = Path(sys.argv[1])
+    
+    try:
+        print(f"Processing: {file_path}")
+        print(f"Supported: {is_supported_file_type(file_path)}")
+        print(f"Method: {get_processing_method(file_path)}")
         
-    Returns:
-        Processing method name ('unstructured', 'jupyter', 'text', or 'unsupported')
-    """
-    extension = file_path.suffix.lower()
-    
-    if extension not in ALL_SUPPORTED_EXTENSIONS:
-        mime_extension = get_file_type_by_mime(file_path)
-        if mime_extension:
-            extension = mime_extension
+        if is_supported_file_type(file_path):
+            content = process_file(file_path)
+            print(f"Content length: {len(content)} characters")
+            print(f"Preview: {content[:200]}...")
         else:
-            return 'unsupported'
-    
-    if extension in JUPYTER_EXTENSIONS:
-        return 'jupyter'
-    elif extension in UNSTRUCTURED_EXTENSIONS:
-        return 'unstructured'
-    elif extension in CODE_EXTENSIONS or extension in TEXT_EXTENSIONS:
-        return 'text'
-    else:
-        return 'unsupported'
-
-
-# Utility function for filesystem monitor integration
-def create_process_file_callback(custom_processor: Optional[Any] = None):
-    """
-    Create a process_file callback function that can be used with the filesystem monitor.
-    
-    Args:
-        custom_processor: Optional custom processor function
-        
-    Returns:
-        Async callback function
-    """
-    async def async_process_file(path: Path) -> str:
-        """Async wrapper for process_file function."""
-        if custom_processor:
-            return await custom_processor(path)
-        else:
-            return process_file(path)
-    
-    return async_process_file
+            print("File type not supported")
+            
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
