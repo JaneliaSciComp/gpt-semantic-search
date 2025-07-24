@@ -2,30 +2,40 @@
 """
 Filesystem RAG Interactive CLI Entry Point
 
-Interactive command-line interface for filesystem RAG with persistent
-directory monitoring, real-time indexing, and semantic search capabilities.
+Enhanced interactive command-line interface for filesystem RAG with beautiful,
+modern terminal output, search-first interface, and comprehensive file monitoring.
 
 Usage:
     python filesystem_rag_cli.py [options]
 
-Interactive Commands:
+🔍 Search Mode (Default):
+    Just type your query naturally - no commands needed!
+    
+📋 Interactive Commands:
     /add <directory> [--class-prefix <prefix>]  Add directory to monitor
     /remove <directory>                         Remove directory from monitoring
     /list                                       Show monitored directories
-    /search <query>                             Search indexed content
+    /search <query>                             Explicit search (same as natural input)
     /status                                     Show system status
     /settings [key] [value]                     View/update settings
     /restart [directory]                        Restart monitoring
     /index <directory> [--remove-existing]     Force re-indexing
     /help                                       Show all commands
     /exit                                       Exit gracefully
+    
+⚡ Shortcuts (can be used without /):
+    help, status, list, exit, quit
 
-Features:
+✨ Enhanced Features:
+    - Beautiful Rich library interface with colors and formatting
+    - Search-first workflow - no need for /search command
+    - Smart command detection and shortcuts
+    - Visual status indicators and enhanced prompts
     - Persistent configuration across sessions
     - Real-time filesystem monitoring with auto-indexing
     - Multi-directory concurrent monitoring
     - Semantic search across all indexed content
-    - Comprehensive file type support (59+ types)
+    - Comprehensive file type support (59+ types via Docling)
     - Background processing with status tracking
 """
 
@@ -86,9 +96,9 @@ Interactive Commands:
 Quick Start:
   1. Start the CLI: python filesystem_rag_cli.py
   2. Add a directory: /add /path/to/documents --class-prefix MyDocs
-  3. Search content: /search "how to configure system"
-  4. View status: /status
-  5. Exit: /exit
+  3. Search naturally: how to configure system
+  4. View status: status (or /status)
+  5. Exit: exit (or /exit)
 
 Configuration:
   Configuration is automatically saved to ~/.filesystem_rag_config.json
@@ -160,7 +170,6 @@ Examples:
         # Override Weaviate URL if provided
         if args.weaviate_url:
             session.config.weaviate_url = args.weaviate_url
-            logger.info(f"Using custom Weaviate URL: {args.weaviate_url}")
         
         # Start the interactive session
         await session.start()
