@@ -43,7 +43,8 @@ class FilesystemLoader:
             "file_path": str(file_path),
             "processing_method": get_processing_method(file_path)
         }
-        return Document(text=text, metadata=metadata)
+        # Use file path as doc_id to enable proper deduplication
+        return Document(text=text, doc_id=str(file_path), metadata=metadata)
     
     def is_hidden(self, path):
         """Check if a file or any parent directory is hidden."""
@@ -84,6 +85,10 @@ class FilesystemLoader:
                     logger.warning(f"No content extracted from: {file_path}")
                     skipped_count += 1
                     continue
+                
+                # Log first 20 chars being indexed for debugging
+                preview = text_content[:20].replace('\n', '\\n').replace('\r', '\\r')
+                logger.info(f"INDEXING {file_path.name}: First 20 chars = '{preview}'")
                 
                 # Create document metadata
                 title = file_path.name
