@@ -53,8 +53,6 @@ class SearchService:
             
             if not self.weaviate_client.is_live():
                 raise ConnectionError(f"Weaviate is not live at {self.weaviate_url}")
-            
-            logger.info(f"Connected to Weaviate at {self.weaviate_url}")
         
         return self.weaviate_client
     
@@ -68,11 +66,7 @@ class SearchService:
         """Create query engine for semantic search."""
         client = self._get_weaviate_client()
         
-        logger.debug(f"Creating query engine:")
-        logger.debug(f"  class_prefix: {class_prefix}")
-        logger.debug(f"  temperature: {temperature}")
-        logger.debug(f"  search_alpha: {search_alpha}")
-        logger.debug(f"  num_results: {num_results}")
+        # Creating query engine for search
         
         # Configure LLM and embedding model
         llm = OpenAI(model="gpt-4o", temperature=temperature)
@@ -141,8 +135,6 @@ class SearchService:
             ConnectionError: If Weaviate is not accessible
             RuntimeError: If search fails
         """
-        logger.info(f"Searching for: '{query}' in class '{class_prefix}'")
-        
         start_time = time.time()
         
         try:
@@ -154,13 +146,12 @@ class SearchService:
             response = query_engine.query(clean_query)
             
             end_time = time.time()
-            logger.info(f"Search completed in {end_time - start_time:.2f} seconds")
             
             # Format response with sources
             if not response or not response.response:
                 return f"No results found for: '{query}'"
             
-            formatted_response = f"{response.response}\\n\\nSources:\\n\\n"
+            formatted_response = f"{response.response}\n\nSources:\n\n"
             
             # Process source nodes
             if hasattr(response, 'source_nodes') and response.source_nodes:
@@ -171,7 +162,7 @@ class SearchService:
                     text = node.node.text or ""
                     
                     # Clean and truncate text
-                    text = re.sub(r"\\n+", " ", text)
+                    text = re.sub(r"\n+", " ", text)
                     text = textwrap.shorten(text, width=100, placeholder="...")
                     text = self._escape_text(text)
                     
@@ -180,11 +171,11 @@ class SearchService:
                     link = extra_info.get('link', '')
                     
                     if link:
-                        formatted_response += f"* {source}: [{title}]({link})\\n  {text}\\n\\n"
+                        formatted_response += f"* {source}: {title}\n  File: {link}\n  {text}\n\n"
                     else:
-                        formatted_response += f"* {source}: {title}\\n  {text}\\n\\n"
+                        formatted_response += f"* {source}: {title}\n  {text}\n\n"
             else:
-                formatted_response += "No sources available\\n"
+                formatted_response += "No sources available\n"
             
             return formatted_response
             
@@ -217,8 +208,6 @@ class SearchService:
         if not class_prefixes:
             return "No classes configured for searching."
         
-        logger.info(f"Searching across {len(class_prefixes)} classes: {class_prefixes}")
-        
         results = []
         
         for class_prefix in class_prefixes:
@@ -227,14 +216,14 @@ class SearchService:
                 
                 # Skip empty results
                 if result and "No results found" not in result:
-                    results.append(f"=== Results from {class_prefix} ===\\n{result}")
+                    results.append(f"=== Results from {class_prefix} ===\n{result}")
                     
             except Exception as e:
                 logger.error(f"Search failed for class {class_prefix}: {e}")
                 continue
         
         if results:
-            return "\\n\\n".join(results)
+            return "\n\n".join(results)
         else:
             return f"No results found for: '{query}'"
     

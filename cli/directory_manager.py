@@ -46,15 +46,12 @@ class DirectoryMonitor:
     async def start(self) -> None:
         """Start monitoring the directory."""
         if self.is_running:
-            logger.warning(f"Monitor already running for: {self.config.path}")
             return
         
         if not self.config.enabled:
-            logger.info(f"Skipping disabled directory: {self.config.path}")
             return
         
         try:
-            logger.info(f"Starting monitor for: {self.config.path}")
             
             directory_path = Path(self.config.path)
             self.monitor = FilesystemMonitor(
@@ -65,7 +62,6 @@ class DirectoryMonitor:
             )
             
             self.is_running = True
-            logger.info(f"✓ Monitor started: {self.config.path} ({self.config.class_prefix})")
             
         except Exception as e:
             logger.error(f"Failed to start monitor for {self.config.path}: {e}")
@@ -78,14 +74,12 @@ class DirectoryMonitor:
             return
         
         try:
-            logger.info(f"Stopping monitor for: {self.config.path}")
             
             if self.monitor:
                 await self.monitor.stop()
                 self.monitor = None
             
             self.is_running = False
-            logger.info(f"✓ Monitor stopped: {self.config.path}")
             
         except Exception as e:
             logger.error(f"Failed to stop monitor for {self.config.path}: {e}")
@@ -93,7 +87,6 @@ class DirectoryMonitor:
     async def _process_file_change(self, file_path: Path) -> None:
         """Process a file that was created or modified."""
         try:
-            logger.info(f"Processing file change: {file_path}")
             self.last_activity = datetime.now()
             
             # Check if file is supported
@@ -109,9 +102,7 @@ class DirectoryMonitor:
                 self.files_failed += 1
                 return
             
-            # Log first 20 chars being indexed for debugging
-            preview = text_content[:20].replace('\n', '\\n').replace('\r', '\\r')
-            logger.info(f"INDEXING {file_path.name}: First 20 chars = '{preview}'")
+            # Index the document
             
             # Create document
             loader = FilesystemLoader(file_path.parent, debug=self.debug)
@@ -127,7 +118,6 @@ class DirectoryMonitor:
             indexer.index([doc])
             
             self.files_processed += 1
-            logger.info(f"Successfully indexed: {file_path.name}")
             
         except Exception as e:
             logger.error(f"Failed to process file change {file_path}: {e}")
@@ -135,7 +125,6 @@ class DirectoryMonitor:
     
     async def _handle_file_removal(self, file_path: Path) -> None:
         """Handle file removal (placeholder for future implementation)."""
-        logger.info(f"File deleted: {file_path}")
         self.last_activity = datetime.now()
         # TODO: Implement document removal from Weaviate
     
@@ -176,31 +165,24 @@ class DirectoryManager:
     async def start_all(self) -> None:
         """Start monitoring all configured directories."""
         if self.is_running:
-            logger.warning("Directory manager already running")
             return
-        
-        logger.info("Starting directory manager...")
         
         # Create monitors for all enabled directories
         for dir_config in self.config.list_directories(enabled_only=True):
             await self.add_monitor(dir_config)
         
         self.is_running = True
-        logger.info(f"✓ Directory manager started with {len(self.monitors)} monitors")
     
     async def stop_all(self) -> None:
         """Stop all directory monitors."""
         if not self.is_running:
             return
         
-        logger.info("Stopping directory manager...")
-        
         # Stop all monitors
         for path in list(self.monitors.keys()):
             await self.remove_monitor(path)
         
         self.is_running = False
-        logger.info("✓ Directory manager stopped")
     
     async def add_monitor(self, dir_config: DirectoryConfig) -> DirectoryMonitor:
         """
@@ -213,7 +195,6 @@ class DirectoryManager:
             Created DirectoryMonitor instance
         """
         if dir_config.path in self.monitors:
-            logger.warning(f"Monitor already exists for: {dir_config.path}")
             return self.monitors[dir_config.path]
         
         try:
@@ -227,7 +208,6 @@ class DirectoryManager:
             await monitor.start()
             self.monitors[dir_config.path] = monitor
             
-            logger.info(f"Added monitor: {monitor}")
             return monitor
             
         except Exception as e:
@@ -249,7 +229,6 @@ class DirectoryManager:
         abs_path = str(Path(path).absolute())
         
         if abs_path not in self.monitors:
-            logger.warning(f"No monitor found for: {abs_path}")
             return False
         
         try:
@@ -257,7 +236,6 @@ class DirectoryManager:
             await monitor.stop()
             
             del self.monitors[abs_path]
-            logger.info(f"Removed monitor: {abs_path}")
             return True
             
         except Exception as e:
@@ -277,7 +255,6 @@ class DirectoryManager:
         abs_path = str(Path(path).absolute())
         
         if abs_path not in self.monitors:
-            logger.warning(f"No monitor found for: {abs_path}")
             return False
         
         try:
@@ -285,7 +262,6 @@ class DirectoryManager:
             await monitor.stop()
             await monitor.start()
             
-            logger.info(f"Restarted monitor: {abs_path}")
             return True
             
         except Exception as e:
@@ -347,8 +323,6 @@ class DirectoryManager:
         if not dir_config:
             raise ValueError(f"Directory not configured: {abs_path}")
         
-        logger.info(f"Starting initial index of: {abs_path}")
-        
         try:
             # Load documents from filesystem
             loader = FilesystemLoader(
@@ -379,7 +353,6 @@ class DirectoryManager:
             # Update last indexed time
             self.config.update_last_indexed(abs_path)
             
-            logger.info(f"✓ Indexed {len(documents)} documents from: {abs_path}")
             return len(documents)
             
         except Exception as e:

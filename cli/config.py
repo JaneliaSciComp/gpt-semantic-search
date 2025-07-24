@@ -115,7 +115,6 @@ class RAGConfig:
         dir_config = DirectoryConfig(abs_path, class_prefix, enabled)
         self.directories.append(dir_config)
         
-        logger.info(f"Added directory: {dir_config}")
         return dir_config
     
     def remove_directory(self, path: str) -> bool:
@@ -133,7 +132,6 @@ class RAGConfig:
         for i, dir_config in enumerate(self.directories):
             if dir_config.path == abs_path:
                 removed = self.directories.pop(i)
-                logger.info(f"Removed directory: {removed}")
                 return True
         
         return False
@@ -227,8 +225,6 @@ class RAGConfig:
             with open(self.config_path, 'w') as f:
                 json.dump(self.to_dict(), f, indent=2)
             
-            logger.info(f"Configuration saved to: {self.config_path}")
-            
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
             raise
@@ -237,14 +233,12 @@ class RAGConfig:
         """Load configuration from file."""
         try:
             if not self.config_path.exists():
-                logger.info(f"No configuration file found at: {self.config_path}")
                 return
             
             with open(self.config_path, 'r') as f:
                 data = json.load(f)
             
             self.from_dict(data)
-            logger.info(f"Configuration loaded from: {self.config_path}")
             
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
@@ -267,7 +261,6 @@ class RAGConfig:
         with open(backup_path, 'w') as f:
             json.dump(self.to_dict(), f, indent=2)
         
-        logger.info(f"Configuration backed up to: {backup_path}")
         return backup_path
     
     def validate(self) -> List[str]:

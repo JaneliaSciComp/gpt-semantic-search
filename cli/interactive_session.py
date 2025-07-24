@@ -12,10 +12,14 @@ import sys
 from datetime import datetime
 from typing import Optional
 
+from rich.console import Console
+from rich.prompt import Prompt
+
 from .config import RAGConfig
 from .directory_manager import DirectoryManager
 from .commands import CommandRegistry, CommandContext
 from .search_service import SearchService
+from .styled_output import styled_output
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +39,7 @@ class InteractiveSession:
         self.command_registry = CommandRegistry()
         self.running = False
         self.debug = debug
+        self.console = Console()
         
         # Setup logging level
         if debug:
@@ -69,66 +74,62 @@ class InteractiveSession:
     
     def _print_banner(self) -> None:
         """Print the welcome banner."""
-        print("🔍 Filesystem RAG Interactive CLI")
-        print("=" * 50)
-        print("Type /help for available commands or /exit to quit")
-        print()
+        styled_output.print_banner()
     
     async def _initialize_configuration(self) -> None:
         """Initialize and validate configuration."""
-        print("Loading configuration...")
+        with styled_output.create_status_spinner("Loading configuration..."):
+            await asyncio.sleep(0.1)  # Brief pause for visual effect
         
         # Validate configuration
         errors = self.config.validate()
         if errors:
-            print("⚠ Configuration warnings:")
+            styled_output.print_warning("Configuration warnings:")
             for error in errors:
-                print(f"  - {error}")
-            print()
+                styled_output.print_info(f"  - {error}")
         
         # Show configuration summary
         directories = self.config.list_directories()
-        if directories:
-            print(f"Found {len(directories)} configured directories")
-        else:
-            print("No directories configured. Use /add to add directories.")
+        if not directories:
+            styled_output.print_info("No directories configured. Use /add to add directories.")
         
-        print(f"Weaviate URL: {self.config.weaviate_url}")
-        print()
+        # Show status panel
+        monitors_running = len([d for d in directories if d.enabled])
+        styled_output.print_status_panel(directories, self.config.weaviate_url, monitors_running)
     
     async def _start_monitoring(self) -> None:
         """Start monitoring configured directories."""
         directories = self.config.list_directories(enabled_only=True)
         
         if not directories:
-            print("No directories to monitor.")
-            print()
+            styled_output.print_info("No directories to monitor.")
             return
         
-        print(f"Starting monitors for {len(directories)} directories...")
+        with styled_output.create_status_spinner(f"Starting monitors for {len(directories)} directories..."):
+            try:
+                await self.directory_manager.start_all()
+                await asyncio.sleep(0.5)  # Brief pause for visual effect
+            except Exception as e:
+                logger.error(f"Failed to start monitoring: {e}")
+                styled_output.print_warning(f"Failed to start some monitors: {e}")
+                return
         
-        try:
-            await self.directory_manager.start_all()
-            
-            # Show monitoring status
-            for dir_config in directories:
-                monitor = self.directory_manager.get_monitor(dir_config.path)
-                if monitor and monitor.is_running:
-                    print(f"✓ Monitoring {dir_config.path} ({dir_config.class_prefix})")
-                else:
-                    print(f"✗ Failed to start monitoring {dir_config.path}")
-            
-            print()
-            
-        except Exception as e:
-            logger.error(f"Failed to start monitoring: {e}")
-            print(f"Warning: Failed to start some monitors: {e}")
-            print()
+        # Show monitoring status
+        success_count = 0
+        for dir_config in directories:
+            monitor = self.directory_manager.get_monitor(dir_config.path)
+            if monitor and monitor.is_running:
+                styled_output.print_success(f"Monitoring {dir_config.path} ({dir_config.class_prefix})")
+                success_count += 1
+            else:
+                styled_output.print_error(f"Failed to start monitoring {dir_config.path}")
+        
+        if success_count > 0:
+            styled_output.print_info(f"Started {success_count}/{len(directories)} monitors successfully")
     
     def _setup_signal_handlers(self) -> None:
         """Setup signal handlers for graceful shutdown."""
         def signal_handler(signum, frame):
-            logger.info(f"Received signal {signum}")
             self.running = False
             # Schedule cleanup
             asyncio.create_task(self._cleanup())
@@ -141,8 +142,8 @@ class InteractiveSession:
         """Run the main REPL (Read-Eval-Print Loop)."""
         self.running = True
         
-        print("Interactive session started. Type /help for commands.")
-        print()
+        styled_output.print_info("Interactive session started. Type naturally to search, or /help for commands.")
+        styled_output.console.print()
         
         # Create command context
         context = CommandContext(
@@ -154,43 +155,72 @@ class InteractiveSession:
         while self.running:
             try:
                 # Show prompt and get user input
-                command_line = await self._get_user_input()
+                user_input = await self._get_user_input()
                 
-                if not command_line.strip():
+                if not user_input.strip():
                     continue
                 
-                # Execute command
-                result = await self.command_registry.execute_command(command_line, context)
-                
-                # Handle special signals
-                if result == "QUIT_SIGNAL":
-                    print("Goodbye!")
-                    break
-                
-                # Print result
-                if result:
-                    print(result)
-                    print()
+                # Determine if this is a command or search query
+                if user_input.startswith("/"):
+                    # This is a command
+                    result = await self.command_registry.execute_command(user_input, context)
+                    
+                    # Handle special signals
+                    if result == "QUIT_SIGNAL":
+                        styled_output.print_goodbye()
+                        break
+                    
+                    # Print command result
+                    if result:
+                        styled_output.print_command_result(result)
+                        styled_output.console.print()
+                elif user_input.lower() in ['help', 'status', 'list', 'exit', 'quit']:
+                    # Common commands that can be used without /
+                    result = await self.command_registry.execute_command(f"/{user_input.lower()}", context)
+                    
+                    # Handle special signals
+                    if result == "QUIT_SIGNAL":
+                        styled_output.print_goodbye()
+                        break
+                    
+                    # Print command result
+                    if result:
+                        styled_output.print_command_result(result)
+                        styled_output.console.print()
+                else:
+                    # This is a search query - execute search directly
+                    result = await self._handle_search_query(user_input, context)
+                    if result:
+                        styled_output.print_search_results(result, user_input)
                 
             except EOFError:
                 # Ctrl+D pressed
-                print("\nGoodbye!")
+                styled_output.print_goodbye()
                 break
             except KeyboardInterrupt:
                 # Ctrl+C pressed
-                print("\nUse /exit to quit gracefully")
+                styled_output.print_warning("Use /exit to quit gracefully")
                 continue
             except Exception as e:
                 logger.error(f"REPL error: {e}")
-                print(f"Error: {e}")
-                print()
+                styled_output.print_error(f"Error: {e}")
     
     async def _get_user_input(self) -> str:
-        """Get user input asynchronously."""
-        # In a real async environment, we'd use aioconsole or similar
-        # For now, use synchronous input
+        """Get user input with styled prompt."""
+        # Get current status for prompt context
+        directories = self.config.list_directories()
+        monitors_running = len([d for d in directories if d.enabled and 
+                              self.directory_manager.get_monitor(d.path) and 
+                              self.directory_manager.get_monitor(d.path).is_running])
+        
+        # Generate styled prompt
+        prompt_text = styled_output.get_styled_prompt(
+            directories_count=len(directories),
+            monitors_active=monitors_running
+        )
+        
         try:
-            return input("> ")
+            return Prompt.ask(prompt_text, console=styled_output.console, default="", show_default=False)
         except EOFError:
             raise
         except KeyboardInterrupt:
@@ -212,27 +242,56 @@ class InteractiveSession:
             logger.error(f"Search error: {e}")
             return f"Search failed: {e}"
     
+    async def _handle_search_query(self, query: str, context: CommandContext) -> str:
+        """
+        Handle natural language search queries (non-command input).
+        """
+        # Get all class prefixes from configured directories
+        class_prefixes = [d.class_prefix for d in self.config.list_directories(enabled_only=True)]
+        
+        if not class_prefixes:
+            return "No directories configured for searching. Use /add to add directories."
+        
+        try:
+            # Search across all classes
+            results = []
+            for class_prefix in class_prefixes:
+                try:
+                    result = self._search_function(query, class_prefix)
+                    if result and "No results found" not in result and "Search failed" not in result:
+                        results.append(f"**Results from {class_prefix}:**\n{result}")
+                except Exception as e:
+                    logger.error(f"Search failed for {class_prefix}: {e}")
+                    continue
+            
+            if results:
+                return "\n\n" + "---\n\n".join(results)
+            else:
+                return ""  # Will be handled as "no results" by caller
+                
+        except Exception as e:
+            logger.error(f"Search error: {e}")
+            return f"Search error: {e}"
+    
     async def _cleanup(self) -> None:
         """Cleanup resources and save state."""
         if not self.running:
             return  # Already cleaned up
         
-        print("Saving configuration...")
+        with styled_output.create_status_spinner("Saving configuration and stopping monitors..."):
+            try:
+                # Save configuration
+                self.config.save()
+                
+                # Stop monitoring
+                await self.directory_manager.stop_all()
+                await asyncio.sleep(0.3)  # Brief pause for visual effect
+                
+            except Exception as e:
+                logger.error(f"Cleanup error: {e}")
+                styled_output.print_warning(f"Cleanup error: {e}")
         
-        try:
-            # Save configuration
-            self.config.save()
-            
-            # Stop monitoring
-            print("Stopping monitors...")
-            await self.directory_manager.stop_all()
-            
-            print("✓ Cleanup complete")
-            
-        except Exception as e:
-            logger.error(f"Cleanup error: {e}")
-            print(f"Warning: Cleanup error: {e}")
-        
+        styled_output.print_success("Cleanup complete")
         self.running = False
     
     def get_status(self) -> dict:

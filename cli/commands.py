@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any, Callable
 
 from .config import RAGConfig, DirectoryConfig
 from .directory_manager import DirectoryManager
+from .styled_output import styled_output
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +102,9 @@ class AddCommand(Command):
             try:
                 def progress_callback(current: int, total: int):
                     if current == 0:
-                        print(f"Indexing {total} files...")
+                        styled_output.print_info(f"Indexing {total} files...")
                     elif current == total:
-                        print(f"✓ Indexing complete")
+                        styled_output.print_success("Indexing complete")
                 
                 doc_count = await context.directory_manager.index_directory(
                     directory,
@@ -175,31 +176,26 @@ class ListCommand(Command):
         if not directories:
             return "No directories configured for monitoring."
         
-        result = "Monitored Directories:\n"
-        
+        # Add monitor status to directory configs for display
         for dir_config in directories:
             monitor = context.directory_manager.get_monitor(dir_config.path)
-            
             if monitor:
                 status = monitor.get_status()
-                running_status = "✓ Active" if status["running"] else "✗ Stopped"
-                files_info = f"{status['files_processed']} processed"
-                if status['files_failed'] > 0:
-                    files_info += f", {status['files_failed']} failed"
-                
-                # Count files in directory
-                try:
-                    total_files = len([f for f in Path(dir_config.path).rglob("*") if f.is_file()])
-                    files_info = f"{total_files} files - {files_info}"
-                except:
-                    pass
-                
-                result += f"• {dir_config.path} ({dir_config.class_prefix}) - {files_info} - {running_status}\n"
+                dir_config.monitor_status = {
+                    'running': status["running"],
+                    'files_processed': status['files_processed'],
+                    'files_failed': status['files_failed']
+                }
             else:
-                status = "✗ Disabled" if not dir_config.enabled else "✗ Not Running"
-                result += f"• {dir_config.path} ({dir_config.class_prefix}) - {status}\n"
+                dir_config.monitor_status = {
+                    'running': False,
+                    'files_processed': 0,
+                    'files_failed': 0
+                }
         
-        return result.rstrip()
+        # Use styled output to print the directory list
+        styled_output.print_directory_list(directories)
+        return ""  # Return empty since styled_output handles the display
 
 
 class StatusCommand(Command):
@@ -214,18 +210,17 @@ class StatusCommand(Command):
     async def execute(self, args: List[str], context: CommandContext) -> str:
         status = context.directory_manager.get_status()
         
-        result = "🔍 Filesystem RAG Status\n"
-        result += f"Weaviate URL: {context.config.weaviate_url}\n"
-        result += f"Total Monitors: {status['total_monitors']}\n"
-        result += f"Running Monitors: {status['running_monitors']}\n"
-        result += f"Files Processed: {status['total_files_processed']}\n"
+        # Get directories for status panel
+        directories = context.config.list_directories()
         
-        if status['total_files_failed'] > 0:
-            result += f"Files Failed: {status['total_files_failed']}\n"
+        # Use styled output to show status
+        styled_output.print_status_panel(
+            directories, 
+            context.config.weaviate_url, 
+            status['running_monitors']
+        )
         
-        result += f"Configuration: {context.config.config_path}\n"
-        
-        return result
+        return ""  # Return empty since styled_output handles the display
 
 
 class SearchCommand(Command):
@@ -263,9 +258,12 @@ class SearchCommand(Command):
                     continue
             
             if results:
-                return "\n\n" + "="*50 + "\n\n".join(results)
+                combined_results = "\n\n" + "---\n\n".join(results)
+                styled_output.print_search_results(combined_results, query)
+                return ""  # Return empty since styled_output handles the display
             else:
-                return f"No results found for: '{query}'"
+                styled_output.print_warning(f"No results found for: '{query}'")
+                return ""
                 
         except Exception as e:
             return f"Search error: {e}"
@@ -281,45 +279,9 @@ class HelpCommand(Command):
         )
     
     async def execute(self, args: List[str], context: CommandContext) -> str:
-        return """
-🔍 Filesystem RAG Interactive CLI Commands:
-
-/add <directory> [--class-prefix <prefix>]
-  Add a directory to monitor and index
-
-/remove <directory>
-  Remove a directory from monitoring
-
-/list
-  Show all monitored directories and their status
-
-/status
-  Show overall monitoring and indexing status
-
-/search <query>
-  Search across all indexed content
-
-/settings [key] [value]
-  View or update configuration settings
-
-/restart [directory]
-  Restart monitoring for a specific directory (or all)
-
-/index <directory>
-  Force re-indexing of a directory
-
-/help
-  Show this help message
-
-/exit or /quit
-  Exit the CLI gracefully
-
-Examples:
-  /add /home/user/documents --class-prefix MyDocs
-  /search "machine learning configuration"
-  /settings debug true
-  /restart /home/user/documents
-        """.strip()
+        # Use styled output to show help
+        styled_output.print_help()
+        return ""  # Return empty since styled_output handles the display
 
 
 class SettingsCommand(Command):
@@ -431,9 +393,9 @@ class IndexCommand(Command):
         try:
             def progress_callback(current: int, total: int):
                 if current == 0:
-                    print(f"Re-indexing {total} files...")
+                    styled_output.print_info(f"Re-indexing {total} files...")
                 elif current == total:
-                    print(f"✓ Re-indexing complete")
+                    styled_output.print_success("Re-indexing complete")
             
             doc_count = await context.directory_manager.index_directory(
                 directory,
@@ -485,10 +447,16 @@ class CommandRegistry:
         for command in commands:
             self.register(command)
             
-        # Add aliases
+        # Add aliases and shortcuts
         self.commands["quit"] = self.commands["exit"]
+        self.commands["q"] = self.commands["exit"]
         self.commands["ls"] = self.commands["list"]
+        self.commands["l"] = self.commands["list"]
         self.commands["?"] = self.commands["help"]
+        self.commands["h"] = self.commands["help"]
+        self.commands["s"] = self.commands["status"]
+        self.commands["a"] = self.commands["add"]
+        self.commands["r"] = self.commands["remove"]
     
     def register(self, command: Command):
         """Register a new command."""
@@ -518,7 +486,7 @@ class CommandRegistry:
             Command result string
         """
         if not command_line.startswith("/"):
-            return "Commands must start with '/'. Type /help for available commands."
+            return "Commands must start with '/'. Type naturally to search, or /help for available commands."
         
         # Parse command and arguments
         parts = command_line[1:].split()
