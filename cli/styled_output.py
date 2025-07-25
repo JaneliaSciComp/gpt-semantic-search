@@ -332,6 +332,27 @@ machine learning best practices
         """Clear the terminal screen."""
         os.system('clear' if os.name == 'posix' else 'cls')
     
+    def print_agent_response(self, response: str, query: str = "") -> None:
+        """Print agent response with special formatting."""
+        # Create header with robot emoji
+        if query:
+            header = f"🤖 Agent Response to: {query}"
+        else:
+            header = "🤖 Agent Response"
+        
+        # Create styled panel for the response
+        response_panel = Panel(
+            Markdown(response),
+            title=f"[bold bright_cyan]{header}[/]",
+            title_align="left",
+            border_style="bright_cyan",
+            box=box.ROUNDED,
+            padding=(1, 2)
+        )
+        
+        self.console.print()
+        self.console.print(response_panel)
+    
     def print_goodbye(self) -> None:
         """Print goodbye message."""
         goodbye_text = Text()

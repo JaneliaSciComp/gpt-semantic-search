@@ -409,6 +409,156 @@ class IndexCommand(Command):
             return f"Error re-indexing directory: {e}"
 
 
+class AgentCommand(Command):
+    """Chat with the filesystem RAG agent."""
+    
+    def __init__(self):
+        super().__init__(
+            "agent",
+            "Chat with the filesystem RAG agent",
+            "<message>"
+        )
+    
+    async def execute(self, args: List[str], context: CommandContext) -> str:
+        if not args:
+            return "Error: Message required\nUsage: /agent <message>"
+        
+        message = " ".join(args)
+        
+        try:
+            # Get agent service from context
+            if not hasattr(context, 'agent_service') or not context.agent_service:
+                return "Agent service not available. Check configuration and server status."
+            
+            # Query the agent
+            response = context.agent_service.query(message)
+            
+            # Use styled output for agent responses
+            styled_output.print_agent_response(response, message)
+            return ""  # Return empty since styled_output handles the display
+            
+        except Exception as e:
+            return f"Agent error: {e}"
+
+
+class AgentStatusCommand(Command):
+    """Show agent status and configuration."""
+    
+    def __init__(self):
+        super().__init__(
+            "agent-status",
+            "Show agent status and configuration"
+        )
+    
+    async def execute(self, args: List[str], context: CommandContext) -> str:
+        try:
+            if not hasattr(context, 'agent_service') or not context.agent_service:
+                return "Agent service not configured."
+            
+            status = context.agent_service.get_status()
+            
+            result = "🤖 Agent Status:\n\n"
+            result += f"• Initialized: {'✅' if status['initialized'] else '❌'}\n"
+            result += f"• Using Local LLM: {'✅' if status['using_local_llm'] else '❌ (OpenAI fallback)'}\n"
+            
+            if 'error' in status:
+                result += f"• Error: {status['error']}\n"
+            
+            if 'local_llm_status' in status:
+                llm_status = status['local_llm_status']
+                result += f"\n🖥️ Local LLM Server:\n"
+                result += f"• URL: {llm_status['server_url']}\n"
+                result += f"• Connected: {'✅' if llm_status['connected'] else '❌'}\n"
+                result += f"• LLM Initialized: {'✅' if llm_status['llm_initialized'] else '❌'}\n"
+            
+            config = status['config']
+            result += f"\n⚙️ Configuration:\n"
+            result += f"• Temperature: {config['temperature']}\n"
+            result += f"• Max Tokens: {config['max_tokens']}\n"
+            result += f"• Server Port: {config['server_port']}\n"
+            result += f"• Fallback to OpenAI: {'✅' if config['fallback_to_openai'] else '❌'}\n"
+            
+            if 'tools_available' in status:
+                result += f"\n🔧 Tools Available: {status['tools_available']}\n"
+            
+            return result
+            
+        except Exception as e:
+            return f"Error getting agent status: {e}"
+
+
+class AgentHelpCommand(Command):
+    """Show agent help and example queries."""
+    
+    def __init__(self):
+        super().__init__(
+            "agent-help",
+            "Show agent help and example queries"
+        )
+    
+    async def execute(self, args: List[str], context: CommandContext) -> str:
+        try:
+            if not hasattr(context, 'agent_service') or not context.agent_service:
+                help_text = """
+🤖 Filesystem RAG Agent (Not Available)
+
+The agent service is not configured. To enable the agent:
+
+1. Install dependencies: pixi install
+2. Start llama-server (see agent-server command)
+3. Restart the CLI
+
+Basic agent commands:
+• /agent <message>     - Chat with the agent
+• /agent-status        - Show agent status
+• /agent-server        - Show server command
+• /agent-help          - Show this help
+"""
+                return help_text
+            
+            return context.agent_service.get_help_text()
+            
+        except Exception as e:
+            return f"Error getting agent help: {e}"
+
+
+class AgentServerCommand(Command):
+    """Show llama-server startup command."""
+    
+    def __init__(self):
+        super().__init__(
+            "agent-server",
+            "Show the llama-server startup command"
+        )
+    
+    async def execute(self, args: List[str], context: CommandContext) -> str:
+        try:
+            if not hasattr(context, 'agent_service') or not context.agent_service:
+                return "Agent service not configured."
+            
+            server_command = context.agent_service.get_server_command()
+            
+            if not server_command:
+                return "Agent not configured to use local LLM."
+            
+            result = "🖥️ Llama Server Startup Command:\n\n"
+            result += f"```\n{server_command}\n```\n\n"
+            result += "📋 Instructions:\n"
+            result += "1. Copy and run the above command in a separate terminal\n"
+            result += "2. Wait for the server to start (shows 'HTTP server listening')\n"
+            result += "3. Use /agent-status to verify connection\n"
+            result += "4. Start chatting with /agent <your message>\n\n"
+            result += "💡 Tips:\n"
+            result += "• Make sure your-model.gguf exists or specify full path\n"
+            result += "• The --chat-template chatml-function-calling is required for tool support\n"
+            result += "• Server runs on port 8080 by default\n"
+            
+            return result
+            
+        except Exception as e:
+            return f"Error getting server command: {e}"
+
+
 class ExitCommand(Command):
     """Exit the CLI."""
     
@@ -441,6 +591,10 @@ class CommandRegistry:
             SettingsCommand(),
             RestartCommand(),
             IndexCommand(),
+            AgentCommand(),
+            AgentStatusCommand(),
+            AgentHelpCommand(),
+            AgentServerCommand(),
             ExitCommand()
         ]
         
@@ -457,6 +611,9 @@ class CommandRegistry:
         self.commands["s"] = self.commands["status"]
         self.commands["a"] = self.commands["add"]
         self.commands["r"] = self.commands["remove"]
+        # Agent aliases
+        self.commands["ai"] = self.commands["agent"]
+        self.commands["chat"] = self.commands["agent"]
     
     def register(self, command: Command):
         """Register a new command."""

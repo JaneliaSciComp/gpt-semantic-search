@@ -49,14 +49,36 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from cli.interactive_session import InteractiveSession
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# Configure logging based on admin_toggle
+def setup_logging(admin_mode=False):
+    """Setup logging based on admin mode."""
+    if admin_mode:
+        # Admin mode: show all logs
+        level = logging.INFO
+        handler = logging.StreamHandler(sys.stdout)
+    else:
+        # Regular mode: suppress logs by using a null handler
+        level = logging.CRITICAL  # Only show critical errors
+        handler = logging.NullHandler()
+    
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[handler],
+        force=True  # Force reconfiguration
+    )
+
+# Check admin_toggle from state.py or default to False for CLI
+try:
+    import state
+    import streamlit as st
+    # Try to get admin_toggle from streamlit session state
+    admin_toggle = getattr(st.session_state, 'admin_toggle', False) if hasattr(st.session_state, 'admin_toggle') else False
+except:
+    # Default to False if state.py is not available or streamlit not running
+    admin_toggle = False
+
+setup_logging(admin_toggle)
 
 logger = logging.getLogger(__name__)
 

@@ -69,7 +69,15 @@ class RAGConfig:
             "auto_index": True,
             "search_alpha": 0.8,
             "temperature": 0.1,
-            "num_results": 10
+            "num_results": 10,
+            # Agent configuration
+            "agent_enabled": True,
+            "agent_prefer_local": True,
+            "agent_fallback_openai": True,
+            "agent_server_port": 8080,
+            "agent_temperature": 0.1,
+            "agent_max_tokens": 512,
+            "agent_model_path": None
         }
         
         # Load existing config if it exists

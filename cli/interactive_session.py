@@ -20,6 +20,8 @@ from .directory_manager import DirectoryManager
 from .commands import CommandRegistry, CommandContext
 from .search_service import SearchService
 from .styled_output import styled_output
+from .agent_service import AgentService
+from .agent_config import get_default_config
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,9 @@ class InteractiveSession:
         self.debug = debug
         self.console = Console()
         
+        # Initialize agent service
+        self.agent_service: Optional[AgentService] = None
+        
         # Setup logging level
         if debug:
             logging.getLogger().setLevel(logging.DEBUG)
@@ -57,6 +62,9 @@ class InteractiveSession:
             
             # Start directory monitoring
             await self._start_monitoring()
+            
+            # Initialize agent service
+            await self._initialize_agent_service()
             
             # Setup signal handlers for graceful shutdown
             self._setup_signal_handlers()
@@ -96,6 +104,39 @@ class InteractiveSession:
         # Show status panel
         monitors_running = len([d for d in directories if d.enabled])
         styled_output.print_status_panel(directories, self.config.weaviate_url, monitors_running)
+    
+    async def _initialize_agent_service(self) -> None:
+        """Initialize the agent service."""
+        try:
+            with styled_output.create_status_spinner("Initializing agent service..."):
+                # Get monitored directories for tools
+                directories = self.config.list_directories()
+                monitored_dirs = {d.path: d.class_prefix for d in directories if d.enabled}
+                
+                # Initialize agent service
+                self.agent_service = AgentService(
+                    search_service=self.search_service,
+                    config=get_default_config(),
+                    monitored_directories=monitored_dirs
+                )
+                
+                # Try to initialize (will fallback to OpenAI if local LLM unavailable)
+                initialized = self.agent_service.initialize()
+                
+                if initialized:
+                    if self.agent_service.using_local_llm:
+                        styled_output.print_success("✓ Agent service initialized with local LLM")
+                    else:
+                        styled_output.print_info("✓ Agent service initialized with OpenAI fallback")
+                else:
+                    styled_output.print_warning("⚠ Agent service initialization failed")
+                    if self.agent_service.initialization_error:
+                        styled_output.print_info(f"  Error: {self.agent_service.initialization_error}")
+                
+        except Exception as e:
+            logger.error(f"Agent service initialization failed: {e}")
+            styled_output.print_warning(f"⚠ Agent service unavailable: {e}")
+            self.agent_service = None
     
     async def _start_monitoring(self) -> None:
         """Start monitoring configured directories."""
@@ -151,6 +192,9 @@ class InteractiveSession:
             directory_manager=self.directory_manager,
             search_func=self._search_function
         )
+        
+        # Add agent service to context
+        context.agent_service = self.agent_service
         
         while self.running:
             try:
@@ -236,7 +280,7 @@ class InteractiveSession:
                 class_prefix=class_prefix,
                 temperature=self.config.get_setting("temperature", 0.1),
                 search_alpha=self.config.get_setting("search_alpha", 0.8),
-                num_results=self.config.get_setting("num_results", 10)
+                num_results=self.config.get_setting("num_results", 3)
             )
         except Exception as e:
             logger.error(f"Search error: {e}")
@@ -285,6 +329,11 @@ class InteractiveSession:
                 
                 # Stop monitoring
                 await self.directory_manager.stop_all()
+                
+                # Shutdown agent service
+                if self.agent_service:
+                    self.agent_service.shutdown()
+                
                 await asyncio.sleep(0.3)  # Brief pause for visual effect
                 
             except Exception as e:

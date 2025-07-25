@@ -61,7 +61,7 @@ class SearchService:
         class_prefix: str,
         temperature: float = 0.1,
         search_alpha: float = 0.8,
-        num_results: int = 10
+        num_results: int = 3
     ):
         """Create query engine for semantic search."""
         client = self._get_weaviate_client()
@@ -116,7 +116,7 @@ class SearchService:
         class_prefix: str,
         temperature: float = 0.1,
         search_alpha: float = 0.8,
-        num_results: int = 10
+        num_results: int = 3
     ) -> str:
         """
         Search indexed documents and return formatted response.
@@ -171,9 +171,9 @@ class SearchService:
                     link = extra_info.get('link', '')
                     
                     if link:
-                        formatted_response += f"* {source}: {title}\n  File: {link}\n  {text}\n\n"
+                        formatted_response += f"* {source}: {title}\n  File: {link}\n  {text}\n\n---\n\n"
                     else:
-                        formatted_response += f"* {source}: {title}\n  {text}\n\n"
+                        formatted_response += f"* {source}: {title}\n  {text}\n\n---\n\n"
             else:
                 formatted_response += "No sources available\n"
             
@@ -190,7 +190,7 @@ class SearchService:
         class_prefixes: List[str],
         temperature: float = 0.1,
         search_alpha: float = 0.8,
-        num_results: int = 10
+        num_results: int = 3
     ) -> str:
         """
         Search across multiple classes and combine results.
@@ -295,7 +295,18 @@ class SearchService:
             class_name = f"{class_prefix}_Node"
             
             # Get class schema
-            schema = client.schema.get_class_schema(class_name)
+            try:
+                schema = client.schema.get_class_schema(class_name)
+            except AttributeError:
+                # Fallback for older Weaviate versions
+                all_schema = client.schema.get()
+                schema = None
+                for class_def in all_schema.get('classes', []):
+                    if class_def['class'] == class_name:
+                        schema = class_def
+                        break
+                if schema is None:
+                    schema = {'properties': []}
             
             # Count objects in class
             result = client.query.aggregate(class_name).with_meta_count().do()
