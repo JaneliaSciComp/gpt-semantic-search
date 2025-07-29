@@ -22,15 +22,7 @@ from .file_processor import (
 )
 
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(f'logs/filesystem_monitor_{datetime.now().strftime("%Y%m%d")}.log', mode='a')
-    ]
-)
+# Configure logger (logging setup handled by CLI)
 logger = logging.getLogger(__name__)
 
 # Get supported extensions from the file processor
@@ -163,9 +155,9 @@ async def watch_directory(
     process_func = process_file_func or process_file
     remove_func = remove_file_func or remove_file
     
-    logger.info(f"Starting filesystem watcher for: {root.absolute()}")
-    logger.info(f"Monitoring extensions: {', '.join(sorted(SUPPORTED_EXTENSIONS))}")
-    logger.info(f"Debounce interval: {debounce}ms")
+    logger.info(f"🚀 Starting filesystem watcher for: {root.absolute()}")
+    logger.info(f"📋 Monitoring {len(SUPPORTED_EXTENSIONS)} file extensions: {', '.join(sorted(list(SUPPORTED_EXTENSIONS)[:10]))}{'...' if len(SUPPORTED_EXTENSIONS) > 10 else ''}")
+    logger.info(f"⏱️  Debounce interval: {debounce}ms")
     
     processed_files = 0
     removed_files = 0
@@ -180,42 +172,45 @@ async def watch_directory(
             for change_type, file_path in changes:
                 path = Path(file_path)
                 
-                # Log all detected changes for debugging
-                logger.debug(f"Detected {change_type.name}: {path}")
+                # Log all detected changes (promoted from debug to info for visibility)
+                logger.info(f"🔍 Detected {change_type.name}: {path}")
                 
                 # Skip if file should not be processed
                 if not should_process_file(path):
-                    logger.debug(f"Skipping {path}: {'hidden' if is_hidden(path) else 'unsupported extension'}")
+                    reason = 'hidden file/directory' if is_hidden(path) else f'unsupported extension ({path.suffix})'
+                    logger.info(f"⏭️  Skipping {path.name}: {reason}")
                     continue
                 
                 try:
                     if change_type in (Change.added, Change.modified):
-                        logger.info(f"File {change_type.name}: {path}")
+                        logger.info(f"📁 Processing {change_type.name} file: {path.name}")
                         if asyncio.iscoroutinefunction(process_func):
                             await process_func(path)
                         else:
                             process_func(path)
                         processed_files += 1
+                        logger.info(f"✅ Successfully processed {path.name}")
                         
                     elif change_type == Change.deleted:
-                        logger.info(f"File deleted: {path}")
+                        logger.info(f"🗑️  Processing deleted file: {path.name}")
                         if asyncio.iscoroutinefunction(remove_func):
                             await remove_func(path)
                         else:
                             remove_func(path)
                         removed_files += 1
+                        logger.info(f"✅ Successfully handled deletion of {path.name}")
                         
                 except Exception as e:
                     logger.error(f"Error processing {path}: {e}", exc_info=True)
                     
     except asyncio.CancelledError:
-        logger.info("Filesystem watcher cancelled")
+        logger.info("🛑 Filesystem watcher cancelled")
         raise
     except Exception as e:
-        logger.error(f"Error in filesystem watcher: {e}", exc_info=True)
+        logger.error(f"❌ Error in filesystem watcher: {e}", exc_info=True)
         raise
     finally:
-        logger.info(f"Filesystem watcher stopped. Processed: {processed_files}, Removed: {removed_files}")
+        logger.info(f"📊 Filesystem watcher stopped. Processed: {processed_files}, Removed: {removed_files}")
 
 
 class FilesystemMonitor:
@@ -237,6 +232,11 @@ class FilesystemMonitor:
         self.stop_event = asyncio.Event()
         self.task: Optional[asyncio.Task] = None
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+    
+    @property
+    def is_running(self) -> bool:
+        """Check if the filesystem monitor is currently running."""
+        return self.task is not None and not self.task.done() and not self.task.cancelled()
         
     async def start(self) -> None:
         """Start the filesystem monitor."""
@@ -253,7 +253,7 @@ class FilesystemMonitor:
                 self.remove_file_func
             )
         )
-        self.logger.info(f"Started filesystem monitor for {self.root}")
+        self.logger.info(f"🟢 Started filesystem monitor for {self.root}")
         
     async def stop(self) -> None:
         """Stop the filesystem monitor."""
@@ -273,7 +273,7 @@ class FilesystemMonitor:
                 pass
         
         self.task = None
-        self.logger.info("Stopped filesystem monitor")
+        self.logger.info("🔴 Stopped filesystem monitor")
         
     async def __aenter__(self):
         await self.start()
