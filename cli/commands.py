@@ -486,7 +486,7 @@ class AgentStatusCommand(Command):
             
             result = "🤖 Agent Status:\n\n"
             result += f"• Initialized: {'✅' if status['initialized'] else '❌'}\n"
-            result += f"• Using Local LLM: {'✅' if status['using_local_llm'] else '❌ (OpenAI fallback)'}\n"
+            result += f"• Using Local LLM: {'✅' if status['using_local_llm'] else '❌ (disabled)'}\n"
             
             if 'error' in status:
                 result += f"• Error: {status['error']}\n"
@@ -503,7 +503,7 @@ class AgentStatusCommand(Command):
             result += f"• Temperature: {config['temperature']}\n"
             result += f"• Max Tokens: {config['max_tokens']}\n"
             result += f"• Server Port: {config['server_port']}\n"
-            result += f"• Fallback to OpenAI: {'✅' if config['fallback_to_openai'] else '❌'}\n"
+            result += f"• Ollama Integration: {'✅' if config.get('ollama_enabled', True) else '❌'}\n"
             
             if 'tools_available' in status:
                 result += f"\n🔧 Tools Available: {status['tools_available']}\n"

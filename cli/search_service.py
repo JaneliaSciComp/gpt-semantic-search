@@ -12,19 +12,12 @@ import time
 from typing import Optional, List, Dict, Any
 
 import weaviate
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import Settings, PromptHelper, GPTVectorStoreIndex
-from llama_index.llms.openai import OpenAI
-from llama_index.core import StorageContext
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.vector_stores.weaviate import WeaviateVectorStore
-from llama_index.core.vector_stores.types import VectorStoreQueryMode
+from ollama_client import SimpleOllamaAPI
 
 logger = logging.getLogger(__name__)
 
 # Model configuration (following web service patterns)
-EMBED_MODEL_NAME = "text-embedding-3-large"
+EMBED_MODEL_NAME = "bge-m3:567m"
 CONTEXT_WINDOW = 128000
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
@@ -42,6 +35,7 @@ class SearchService:
         self.weaviate_url = weaviate_url
         self.debug = debug
         self.weaviate_client: Optional[weaviate.Client] = None
+        self.ollama = SimpleOllamaAPI()
         
         if self.debug:
             logger.setLevel(logging.DEBUG)
@@ -56,42 +50,32 @@ class SearchService:
         
         return self.weaviate_client
     
-    def _get_query_engine(
+    def _search_weaviate(
         self,
+        query: str,
         class_prefix: str,
-        temperature: float = 0.1,
-        search_alpha: float = 0.8,
         num_results: int = 3
-    ):
-        """Create query engine for semantic search."""
+    ) -> List[Dict]:
+        """Direct Weaviate search without LlamaIndex."""
         client = self._get_weaviate_client()
+        class_name = f"{class_prefix}_Node"
         
-        # Creating query engine for search
+        # Get query embedding
+        query_embedding = self.ollama.get_embedding(query)
         
-        # Configure LLM and embedding model
-        llm = OpenAI(model="gpt-4o", temperature=temperature)
-        embed_model = OpenAIEmbedding(model=EMBED_MODEL_NAME)
-        prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
-        
-        Settings.llm = llm
-        Settings.embed_model = embed_model
-        Settings.chunk_size = 512
-        Settings.prompt_helper = prompt_helper
-        
-        # Create vector store and index
-        vector_store = WeaviateVectorStore(weaviate_client=client, class_prefix=class_prefix)
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = GPTVectorStoreIndex([], storage_context=storage_context)
-        
-        # Configure retriever with hybrid search
-        retriever = VectorIndexRetriever(
-            index,
-            similarity_top_k=num_results,
-            vector_store_query_mode=VectorStoreQueryMode.HYBRID,
-            alpha=search_alpha,
+        # Perform vector search
+        result = (
+            client.query
+            .get(class_name, ["text", "title", "link", "source", "ref_doc_id"])
+            .with_near_vector({"vector": query_embedding})
+            .with_limit(num_results)
+            .do()
         )
         
-        return RetrieverQueryEngine.from_args(retriever)
+        if not result.get("data", {}).get("Get", {}).get(class_name):
+            return []
+        
+        return result["data"]["Get"][class_name]
     
     def _escape_text(self, text: str) -> str:
         """Escape special characters for display."""
@@ -100,15 +84,6 @@ class SearchService:
         text = re.sub("([_#])", r"\\\\\\1", text)
         return text
     
-    def _get_unique_nodes(self, nodes):
-        """Get unique nodes from search results."""
-        docs_ids = set()
-        unique_nodes = []
-        for node in nodes:
-            if node.node.ref_doc_id not in docs_ids:
-                docs_ids.add(node.node.ref_doc_id)
-                unique_nodes.append(node)
-        return unique_nodes
     
     def search(
         self,
@@ -125,7 +100,7 @@ class SearchService:
             query: Search query
             class_prefix: Weaviate class prefix to search
             temperature: LLM temperature for response generation
-            search_alpha: Hybrid search balance (0=keyword, 1=vector)
+            search_alpha: Hybrid search balance (ignored for now)
             num_results: Number of results to retrieve
             
         Returns:
@@ -141,41 +116,45 @@ class SearchService:
             # Clean query
             clean_query = re.sub('"', "", query)
             
-            # Get query engine and execute search
-            query_engine = self._get_query_engine(class_prefix, temperature, search_alpha, num_results)
-            response = query_engine.query(clean_query)
+            # Get search results from Weaviate
+            search_results = self._search_weaviate(clean_query, class_prefix, num_results)
             
-            end_time = time.time()
-            
-            # Format response with sources
-            if not response or not response.response:
+            if not search_results:
                 return f"No results found for: '{query}'"
             
-            formatted_response = f"{response.response}\n\nSources:\n\n"
+            # Build context for LLM
+            context = "Context:\n"
+            for i, result in enumerate(search_results, 1):
+                text = result.get("text", "")[:500]  # Limit context size
+                title = result.get("title", "Untitled")
+                context += f"{i}. {title}: {text}\n\n"
             
-            # Process source nodes
-            if hasattr(response, 'source_nodes') and response.source_nodes:
-                unique_nodes = self._get_unique_nodes(response.source_nodes)
+            # Generate response with Ollama
+            prompt = f"""Based on the following context, answer the user's question: "{clean_query}"
+
+{context}
+
+Provide a helpful and accurate answer based on the context provided. If the context doesn't contain enough information to answer the question, say so."""
+            
+            response_text = self.ollama.generate(prompt, temperature=temperature)
+            
+            # Format response with sources
+            formatted_response = f"{response_text}\n\nSources:\n\n"
+            
+            for result in search_results:
+                text = result.get("text", "")
+                text = re.sub(r"\n+", " ", text)
+                text = textwrap.shorten(text, width=100, placeholder="...")
+                text = self._escape_text(text)
                 
-                for node in unique_nodes:
-                    extra_info = node.node.extra_info or {}
-                    text = node.node.text or ""
-                    
-                    # Clean and truncate text
-                    text = re.sub(r"\n+", " ", text)
-                    text = textwrap.shorten(text, width=100, placeholder="...")
-                    text = self._escape_text(text)
-                    
-                    source = extra_info.get('source', 'Unknown')
-                    title = extra_info.get('title', 'Untitled')
-                    link = extra_info.get('link', '')
-                    
-                    if link:
-                        formatted_response += f"* {source}: {title}\n  File: {link}\n  {text}\n\n---\n\n"
-                    else:
-                        formatted_response += f"* {source}: {title}\n  {text}\n\n---\n\n"
-            else:
-                formatted_response += "No sources available\n"
+                source = result.get("source", "Unknown")
+                title = result.get("title", "Untitled")
+                link = result.get("link", "")
+                
+                if link:
+                    formatted_response += f"* {source}: {title}\n  File: {link}\n  {text}\n\n---\n\n"
+                else:
+                    formatted_response += f"* {source}: {title}\n  {text}\n\n---\n\n"
             
             return formatted_response
             

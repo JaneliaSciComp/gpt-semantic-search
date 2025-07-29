@@ -9,16 +9,7 @@ import logging
 import warnings
 from typing import Dict, List
 import time
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import Settings
-from llama_index.core import PromptHelper, GPTVectorStoreIndex
-from llama_index.llms.openai import OpenAI
-from llama_index.core import StorageContext
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine, TransformQueryEngine
-from llama_index.vector_stores.weaviate import WeaviateVectorStore
-from llama_index.core.vector_stores.types import VectorStoreQueryMode
-from llama_index.core.indices.query.query_transform import HyDEQueryTransform
+from ollama_client import SimpleOllamaAPI
 
 import weaviate
 import streamlit as st
@@ -33,20 +24,20 @@ warnings.simplefilter("ignore", ResourceWarning)
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger('llama_index').setLevel(logging.DEBUG)
-logging.getLogger('openai').setLevel(logging.DEBUG)
+logging.getLogger('ollama').setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Constants
-EMBED_MODEL_NAME="text-embedding-3-large"
+EMBED_MODEL_NAME="bge-m3:567m"
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
 SURVEY_CLASS = "SurveyResponses"
 
 SIDEBAR_DESC = """
-JaneliaGPT uses OpenAI models to index various data sources in a vector database for searching. 
+JaneliaGPT uses Ollama local models to index various data sources in a vector database for searching. 
 Currently the following sources are indexed:
 * Janelia.org
 * Janelia-Software Slack Workspace
@@ -152,7 +143,109 @@ def get_slack_client():
     return slack_client
 
 
-def get_query_engine(_weaviate_client):
+def search_and_generate(_weaviate_client, query):
+
+    class_prefix = st.session_state["class_prefix"]
+    temperature = st.session_state["temperature"] / 100.0
+    num_results = st.session_state["num_results"]
+
+    logger.info("Searching with parameters:")
+    logger.info(f"  class_prefix: {class_prefix}")
+    logger.info(f"  temperature: {temperature}")
+    logger.info(f"  num_results: {num_results}")
+
+    ollama = SimpleOllamaAPI()
+    class_name = f"{class_prefix}_Node"
+    
+    # Get query embedding and search Weaviate
+    query_embedding = ollama.get_embedding(query)
+    
+    logger.info(f"Searching Weaviate class '{class_name}' with {len(query_embedding)} dimensional vector")
+    
+    result = (
+        _weaviate_client.query
+        .get(class_name, ["text", "title", "link", "source", "ref_doc_id"])
+        .with_near_vector({"vector": query_embedding})
+        .with_limit(num_results)
+        .do()
+    )
+    
+    logger.debug(f"Weaviate search result: {result}")
+    
+    if not result.get("data", {}).get("Get", {}).get(class_name):
+        logger.warning(f"No search results found for class '{class_name}'")
+        logger.info("This might be because:")
+        logger.info("1. No documents are indexed in this class")
+        logger.info("2. Documents were indexed without vector embeddings")
+        logger.info("3. The embedding dimensions don't match")
+        
+        # Check if class exists and has data
+        try:
+            schema = _weaviate_client.schema.get(class_name)
+            logger.info(f"Class {class_name} exists in schema")
+            
+            # Get a count of objects in the class
+            count_result = _weaviate_client.query.aggregate(class_name).with_meta_count().do()
+            count = count_result.get("data", {}).get("Aggregate", {}).get(class_name, [{}])[0].get("meta", {}).get("count", 0)
+            logger.info(f"Class {class_name} contains {count} objects")
+            
+            if count > 0:
+                logger.warning("Objects exist but vector search returned no results - likely missing embeddings")
+        except Exception as e:
+            logger.error(f"Error checking class status: {str(e)}")
+        
+        return None, []
+    
+    search_results = result["data"]["Get"][class_name]
+    
+    # Build context for LLM
+    context = "Context:\n"
+    for i, result in enumerate(search_results, 1):
+        text = result.get("text", "")[:500]  # Limit context size
+        title = result.get("title", "Untitled")
+        context += f"{i}. {title}: {text}\n\n"
+    
+    # Generate response with Ollama
+    prompt = f"""Based on the following context, answer the user's question: "{query}"
+
+{context}
+
+Provide a helpful and accurate answer based on the context provided. If the context doesn't contain enough information to answer the question, say so."""
+    
+    response_text = ollama.generate(prompt, temperature=temperature)
+    
+    return response_text, search_results
+
+
+def format_response_with_sources(response_text, search_results, query):
+    # Original response formatting logic
+    if not response_text:
+        return f"No results found for: '{query}'"
+    
+    formatted_response = response_text
+    
+    if search_results:
+        formatted_response += "\n\n**Sources:**\n\n"
+        
+        for result in search_results:
+            text = result.get("text", "")
+            text = re.sub(r"\n+", " ", text)
+            text = textwrap.shorten(text, width=100, placeholder="...")
+            text = escape_text(text)
+            
+            source = result.get("source", "Unknown")
+            title = result.get("title", "Untitled")
+            link = result.get("link", "")
+            
+            if link:
+                formatted_response += f"* {source}: {title}\n  Link: {link}\n  {text}\n\n---\n\n"
+            else:
+                formatted_response += f"* {source}: {title}\n  {text}\n\n---\n\n"
+    
+    return formatted_response
+
+
+def old_get_query_engine(_weaviate_client):
 
     model = st.session_state["model"]
     class_prefix = st.session_state["class_prefix"]
@@ -170,19 +263,19 @@ def get_query_engine(_weaviate_client):
     logger.info(f"  hyde_enabled: {hyde_enabled} (type: {type(hyde_enabled)})")
     logger.info(f"  session_state.hyde_enabled: {st.session_state.get('hyde_enabled', 'NOT_SET')}")
 
-    llm = OpenAI(model=model, temperature=temperature)
-    embed_model = OpenAIEmbedding(model=EMBED_MODEL_NAME)
-    prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
+    ollama = SimpleOllamaAPI()
+    
+    # This is now simplified - just return the ollama instance
+    return ollama
 
-    Settings.llm = llm
-    Settings.embed_model = embed_model
-    Settings.chunk_size = 512
-    Settings.prompt_helper = prompt_helper
 
-    vector_store = WeaviateVectorStore(weaviate_client=_weaviate_client, class_prefix=class_prefix)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    index = GPTVectorStoreIndex([], storage_context=storage_context)
+def get_query_engine(_weaviate_client):
+    # Legacy function - now just returns ollama
+    return old_get_query_engine(_weaviate_client)
 
+
+def old_retriever_method(_weaviate_client):
+    # Old code moved here for reference
     # configure retriever
     retriever = VectorIndexRetriever(
         index,
@@ -209,33 +302,39 @@ def get_query_engine(_weaviate_client):
 
 
 def get_response(_query_engine, _slack_client, query):
-
-    # Escape certain characters which the 
-    query = re.sub("\"", "", query)
-
-    response = _query_engine.query(query)
-
-    msg = f"{response.response}\n\nSources:\n\n"
-    for node in get_unique_nodes(response.source_nodes):
-        extra_info = node.node.extra_info
-        text = node.node.text
-
-        text = re.sub("\n+", " ", text)
+    # Clean query
+    clean_query = re.sub('"', "", query)
+    
+    # Use new search and generate function
+    response_text, search_results = search_and_generate(weaviate_client, clean_query)
+    
+    if not response_text:
+        return f"No results found for: '{query}'"
+    
+    msg = f"{response_text}\n\n**Sources:**\n\n"
+    
+    for result in search_results:
+        text = result.get("text", "")
+        text = re.sub(r"\n+", " ", text)
         text = textwrap.shorten(text, width=100, placeholder="...")
         text = escape_text(text)
-
-        source = extra_info['source']
-
-        if source.lower() == 'slack':
-            channel_id = extra_info['channel']
-            ts = extra_info['ts']
+        
+        source = result.get("source", "Unknown")
+        title = result.get("title", "Untitled")
+        link = result.get("link", "")
+        
+        if source.lower() == 'slack' and 'channel' in result and 'ts' in result:
+            channel_id = result['channel']
+            ts = result['ts']
             msg += f"* {source}: [{text}]({get_message_link(_slack_client, channel_id, ts)})\n"
+        elif link:
+            msg += f"* {source}: [{title}]({link})\n"
         else:
-            msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
-
+            msg += f"* {source}: {title}\n  {text}\n\n"
+    
     return msg
 
-parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
+parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and Ollama')
 parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
 args = parser.parse_args()
 

@@ -135,8 +135,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/1f/19/89836022affc1bf470e2485e28872b489254a66fe587155edba731a07112/llama_cpp_python-0.2.90.tar.gz
       - pypi: https://files.pythonhosted.org/packages/c2/9a/9a327ff664e4904b6806f716bf705041d3015b99b12568872833df10b18f/llama_index_agent_openai-0.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/18/b13a18338417755116490386f474cba630dda1a592d35723281650b71859/llama_index_core-0.10.46-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1c/4c/c16dbcb16fb7379fc031a1f18941527596db40000a6c1d6813d4dece12f6/llama_index_embeddings_ollama-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/d6/4623eb16f0e4ba2a716747f824451548ac5618f4093e1d0a9e0c66771e64/llama_index_embeddings_openai-0.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/84/3bbcc74af0cdde3983da1269d81ba69d9ce052ea43d08d1fa186ade3b5bd/llama_index_llms_llama_cpp-0.1.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/7e/26/3f368f2155619dbded99c69b4b6e23fa5e7179e9e4b87eff338c7cdbdda8/llama_index_llms_ollama-0.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1d/78/0233376caaba93739d1ae187f9369be63fc9df7a3bf83032370c59ddca40/llama_index_llms_openai-0.1.19-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/30/6a82a82999ee03b72993ed968ffed1c97e0f452592307502bdd7ce3d6b73/llama_index_vector_stores_weaviate-0.1.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/9c/a1a3086f023a8957ebd527c98d9356b6dd9409edef827ffdeee484f47abf/llamaindex_py_client-0.1.19-py3-none-any.whl
@@ -170,6 +172,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/67/ca/f42388aed0fddd64ade7493dbba36e1f534d4e6fdbdd355c6a90030ae028/nvidia_nccl_cu12-2.26.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/9d/d7/c5383e47c7e9bf1c99d5bd2a8c935af2b6d705ad831a7ec5c97db4d82f4f/nvidia_nvjitlink_cu12-12.6.85-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/56/9a/fff8376f8e3d084cd1530e1ef7b879bb7d6d265620c95c1b322725c694f4/nvidia_nvtx_cu12-12.6.77-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/16/35/10bb93c51c446370cf760ea0e722c78755bbe0572aeb4663bf8c19c9b082/openai-1.30.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dd/5c/c139a7876099916879609372bfa513b7f1257f7f1a908b0bdc1c2328241b/opencv_python_headless-4.11.0.86-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/8b/2f/0c646d5fd689d3be94f4d83fa9435a6c4322c9b8533edbb3cd4bc8c5f69a/orjson-3.10.18-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -386,8 +389,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/1f/19/89836022affc1bf470e2485e28872b489254a66fe587155edba731a07112/llama_cpp_python-0.2.90.tar.gz
       - pypi: https://files.pythonhosted.org/packages/c2/9a/9a327ff664e4904b6806f716bf705041d3015b99b12568872833df10b18f/llama_index_agent_openai-0.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/18/b13a18338417755116490386f474cba630dda1a592d35723281650b71859/llama_index_core-0.10.46-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1c/4c/c16dbcb16fb7379fc031a1f18941527596db40000a6c1d6813d4dece12f6/llama_index_embeddings_ollama-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/d6/4623eb16f0e4ba2a716747f824451548ac5618f4093e1d0a9e0c66771e64/llama_index_embeddings_openai-0.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/84/3bbcc74af0cdde3983da1269d81ba69d9ce052ea43d08d1fa186ade3b5bd/llama_index_llms_llama_cpp-0.1.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/7e/26/3f368f2155619dbded99c69b4b6e23fa5e7179e9e4b87eff338c7cdbdda8/llama_index_llms_ollama-0.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1d/78/0233376caaba93739d1ae187f9369be63fc9df7a3bf83032370c59ddca40/llama_index_llms_openai-0.1.19-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/30/6a82a82999ee03b72993ed968ffed1c97e0f452592307502bdd7ce3d6b73/llama_index_vector_stores_weaviate-0.1.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/9c/a1a3086f023a8957ebd527c98d9356b6dd9409edef827ffdeee484f47abf/llamaindex_py_client-0.1.19-py3-none-any.whl
@@ -407,6 +412,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e3/ad/fb6cca942528e25e8e0ab0f0cf98fe007319bf05cf69d726c564b815c4af/ninja-1.11.1.4-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/a6/0a/0d20d2c0f16be91b9fa32a77b76c60f9baf6eba419e5ef5deca17af9c582/nltk-3.8.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/cf/c5dfa6ca5b6553f30860337020d76c582fd81b48da58982a6f2ff1f1fe40/numerize-0.12.tar.gz
+      - pypi: https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/16/35/10bb93c51c446370cf760ea0e722c78755bbe0572aeb4663bf8c19c9b082/openai-1.30.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/45/be/1438ce43ebe65317344a87e4b150865c5585f4c0db880a34cdae5ac46881/opencv_python_headless-4.11.0.86-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
       - pypi: https://files.pythonhosted.org/packages/3d/e1/d3c0a2bba5b9906badd121da449295062b289236c39c3a7801f92c4682b0/orjson-3.10.18-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
@@ -615,8 +621,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/1f/19/89836022affc1bf470e2485e28872b489254a66fe587155edba731a07112/llama_cpp_python-0.2.90.tar.gz
       - pypi: https://files.pythonhosted.org/packages/c2/9a/9a327ff664e4904b6806f716bf705041d3015b99b12568872833df10b18f/llama_index_agent_openai-0.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/18/b13a18338417755116490386f474cba630dda1a592d35723281650b71859/llama_index_core-0.10.46-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1c/4c/c16dbcb16fb7379fc031a1f18941527596db40000a6c1d6813d4dece12f6/llama_index_embeddings_ollama-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/d6/4623eb16f0e4ba2a716747f824451548ac5618f4093e1d0a9e0c66771e64/llama_index_embeddings_openai-0.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/84/3bbcc74af0cdde3983da1269d81ba69d9ce052ea43d08d1fa186ade3b5bd/llama_index_llms_llama_cpp-0.1.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/7e/26/3f368f2155619dbded99c69b4b6e23fa5e7179e9e4b87eff338c7cdbdda8/llama_index_llms_ollama-0.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1d/78/0233376caaba93739d1ae187f9369be63fc9df7a3bf83032370c59ddca40/llama_index_llms_openai-0.1.19-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/30/6a82a82999ee03b72993ed968ffed1c97e0f452592307502bdd7ce3d6b73/llama_index_vector_stores_weaviate-0.1.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/9c/a1a3086f023a8957ebd527c98d9356b6dd9409edef827ffdeee484f47abf/llamaindex_py_client-0.1.19-py3-none-any.whl
@@ -636,6 +644,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4f/b1/3a61b348936b62a386465b1937cd778fa3a5748582e26d832dbab844ff27/ninja-1.11.1.4-py3-none-macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/a6/0a/0d20d2c0f16be91b9fa32a77b76c60f9baf6eba419e5ef5deca17af9c582/nltk-3.8.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/cf/c5dfa6ca5b6553f30860337020d76c582fd81b48da58982a6f2ff1f1fe40/numerize-0.12.tar.gz
+      - pypi: https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/16/35/10bb93c51c446370cf760ea0e722c78755bbe0572aeb4663bf8c19c9b082/openai-1.30.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3b/43/68555327df94bb9b59a1fd645f63fafb0762515344d2046698762fc19d58/opencv_python_headless-4.11.0.86-cp37-abi3-macosx_13_0_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/27/16/2ceb9fb7bc2b11b1e4a3ea27794256e93dee2309ebe297fd131a778cd150/orjson-3.10.18-cp310-cp310-macosx_10_15_x86_64.macosx_11_0_arm64.macosx_10_15_universal2.whl
@@ -842,8 +851,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/1f/19/89836022affc1bf470e2485e28872b489254a66fe587155edba731a07112/llama_cpp_python-0.2.90.tar.gz
       - pypi: https://files.pythonhosted.org/packages/c2/9a/9a327ff664e4904b6806f716bf705041d3015b99b12568872833df10b18f/llama_index_agent_openai-0.2.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fc/18/b13a18338417755116490386f474cba630dda1a592d35723281650b71859/llama_index_core-0.10.46-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/1c/4c/c16dbcb16fb7379fc031a1f18941527596db40000a6c1d6813d4dece12f6/llama_index_embeddings_ollama-0.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e4/d6/4623eb16f0e4ba2a716747f824451548ac5618f4093e1d0a9e0c66771e64/llama_index_embeddings_openai-0.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/52/84/3bbcc74af0cdde3983da1269d81ba69d9ce052ea43d08d1fa186ade3b5bd/llama_index_llms_llama_cpp-0.1.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/7e/26/3f368f2155619dbded99c69b4b6e23fa5e7179e9e4b87eff338c7cdbdda8/llama_index_llms_ollama-0.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1d/78/0233376caaba93739d1ae187f9369be63fc9df7a3bf83032370c59ddca40/llama_index_llms_openai-0.1.19-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/30/6a82a82999ee03b72993ed968ffed1c97e0f452592307502bdd7ce3d6b73/llama_index_vector_stores_weaviate-0.1.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/9c/a1a3086f023a8957ebd527c98d9356b6dd9409edef827ffdeee484f47abf/llamaindex_py_client-0.1.19-py3-none-any.whl
@@ -863,6 +874,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4f/b1/3a61b348936b62a386465b1937cd778fa3a5748582e26d832dbab844ff27/ninja-1.11.1.4-py3-none-macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/a6/0a/0d20d2c0f16be91b9fa32a77b76c60f9baf6eba419e5ef5deca17af9c582/nltk-3.8.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/cf/c5dfa6ca5b6553f30860337020d76c582fd81b48da58982a6f2ff1f1fe40/numerize-0.12.tar.gz
+      - pypi: https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/16/35/10bb93c51c446370cf760ea0e722c78755bbe0572aeb4663bf8c19c9b082/openai-1.30.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/53/2c50afa0b1e05ecdb4603818e85f7d174e683d874ef63a6abe3ac92220c8/opencv_python_headless-4.11.0.86-cp37-abi3-macosx_13_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/27/16/2ceb9fb7bc2b11b1e4a3ea27794256e93dee2309ebe297fd131a778cd150/orjson-3.10.18-cp310-cp310-macosx_10_15_x86_64.macosx_11_0_arm64.macosx_10_15_universal2.whl
@@ -3727,6 +3739,14 @@ packages:
   - typing-inspect>=0.8.0
   - wrapt
   requires_python: '>=3.8.1,<4.0'
+- pypi: https://files.pythonhosted.org/packages/1c/4c/c16dbcb16fb7379fc031a1f18941527596db40000a6c1d6813d4dece12f6/llama_index_embeddings_ollama-0.2.0-py3-none-any.whl
+  name: llama-index-embeddings-ollama
+  version: 0.2.0
+  sha256: 372b059321386bd9bbf4f619ad33dd551adb9ee92eeeb0c664d3466f7c212e2e
+  requires_dist:
+  - llama-index-core>=0.10.1,<0.11.0
+  - ollama>=0.3.1,<0.4.0
+  requires_python: '>=3.8.1,<4.0'
 - pypi: https://files.pythonhosted.org/packages/e4/d6/4623eb16f0e4ba2a716747f824451548ac5618f4093e1d0a9e0c66771e64/llama_index_embeddings_openai-0.1.7-py3-none-any.whl
   name: llama-index-embeddings-openai
   version: 0.1.7
@@ -3741,6 +3761,14 @@ packages:
   requires_dist:
   - llama-cpp-python>=0.2.32,<0.3.0
   - llama-index-core>=0.10.1,<0.11.0
+  requires_python: '>=3.8.1,<4.0'
+- pypi: https://files.pythonhosted.org/packages/7e/26/3f368f2155619dbded99c69b4b6e23fa5e7179e9e4b87eff338c7cdbdda8/llama_index_llms_ollama-0.2.2-py3-none-any.whl
+  name: llama-index-llms-ollama
+  version: 0.2.2
+  sha256: c224d7c17d641045bc9b6a6681dab434c1c421af0bacb5825eea444fefd8ed78
+  requires_dist:
+  - llama-index-core>=0.10.1,<0.11.0
+  - ollama>=0.3.0
   requires_python: '>=3.8.1,<4.0'
 - pypi: https://files.pythonhosted.org/packages/1d/78/0233376caaba93739d1ae187f9369be63fc9df7a3bf83032370c59ddca40/llama_index_llms_openai-0.1.19-py3-none-any.whl
   name: llama-index-llms-openai
@@ -4351,6 +4379,13 @@ packages:
   version: 12.6.77
   sha256: b90bed3df379fa79afbd21be8e04a0314336b8ae16768b58f2d34cb1d04cd7d2
   requires_python: '>=3'
+- pypi: https://files.pythonhosted.org/packages/6a/ca/d22905ac3f768523f778189d38c9c6cd9edf4fa9dd09cb5a3fc57b184f90/ollama-0.3.3-py3-none-any.whl
+  name: ollama
+  version: 0.3.3
+  sha256: ca6242ce78ab34758082b7392df3f9f6c2cb1d070a9dede1a4c545c929e16dba
+  requires_dist:
+  - httpx>=0.27.0,<0.28.0
+  requires_python: '>=3.8,<4.0'
 - pypi: https://files.pythonhosted.org/packages/16/35/10bb93c51c446370cf760ea0e722c78755bbe0572aeb4663bf8c19c9b082/openai-1.30.1-py3-none-any.whl
   name: openai
   version: 1.30.1

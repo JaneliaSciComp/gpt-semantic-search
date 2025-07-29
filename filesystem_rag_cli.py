@@ -186,21 +186,13 @@ Examples:
     # Validate environment
     try:
         import weaviate
-        import openai
         from llama_index.core import Settings
     except ImportError as e:
         print(f"Error: Missing required dependencies: {e}")
         print("Please install required packages:")
         print("  pixi install")
-        print("  # or manually install: weaviate-client, openai, llama-index")
+        print("  # or manually install: weaviate-client, llama-index")
         sys.exit(1)
-    
-    # Check for OpenAI API key
-    import os
-    if not os.getenv('OPENAI_API_KEY'):
-        print("Warning: OPENAI_API_KEY environment variable not set.")
-        print("Some features may not work without a valid OpenAI API key.")
-        print()
     
     # Create and configure session
     try:

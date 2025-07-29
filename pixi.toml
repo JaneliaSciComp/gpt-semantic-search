@@ -19,6 +19,8 @@ rich = "<14"
 [pypi-dependencies]
 llama-index-embeddings-openai = "==0.1.7"
 llama-index-llms-openai = "==0.1.19"
+llama_index-embeddings-ollama = "*"
+llama_index-llms-ollama = "*"
 llama-index-vector-stores-weaviate = "==0.1.4"
 llama-index-core = "==0.10.46"
 llama-index-llms-llama-cpp = ">=0.1.0"

@@ -5,14 +5,12 @@ DEFAULT_CLASS_PREFIX = "Janelia"
 
 @st.cache_resource
 def get_models():
-    """ Returns a list of available GPT models.
+    """ Returns a list of available Ollama models.
     """
-    from openai import OpenAI
+    from ollama_client import LLM
     
-    client = OpenAI()
-    model_res = client.models.list()
-    models = [model.id for model in model_res.data]
-    return sorted(models)
+    llm = LLM()
+    return llm.get_models()
 
 
 def init_state():
@@ -29,7 +27,7 @@ def init_state():
     if "model" not in st.session_state:
         st.session_state.update({
             "model_options": get_models(),
-            "model": "gpt-4o",
+            "model": "qwen3:4b",
             # "model": "gpt-3.5-turbo",
             "search_alpha": 55,
             "num_results": 3,

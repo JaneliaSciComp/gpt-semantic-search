@@ -73,7 +73,7 @@ class RAGConfig:
             # Agent configuration
             "agent_enabled": True,
             "agent_prefer_local": True,
-            "agent_fallback_openai": True,
+            "agent_fallback_openai": False,
             "agent_server_port": 8080,
             "agent_temperature": 0.1,
             "agent_max_tokens": 512,

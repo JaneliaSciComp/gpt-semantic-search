@@ -4,10 +4,7 @@ import warnings
 from datetime import datetime
 from typing import Any, Dict, List
 
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import PromptHelper, ServiceContext, GPTVectorStoreIndex
-from llama_index.vector_stores.weaviate import WeaviateVectorStore
-from llama_index.core import StorageContext
+from ollama_client import SimpleOllamaAPI
 
 import weaviate
 
@@ -16,7 +13,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
-EMBED_MODEL_NAME="text-embedding-3-large"
+EMBED_MODEL_NAME="bge-m3:567m"
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
@@ -100,6 +97,7 @@ class Indexer():
         self.weaviate_url = weaviate_url
         self.class_prefix = class_prefix
         self.delete_database = delete_database
+        self.ollama = SimpleOllamaAPI()
 
     def index(self, documents):
         """Index all documents at once (legacy method)."""
@@ -137,18 +135,45 @@ class Indexer():
             # Ensure schema exists even if not deleting
             create_schema(client, class_prefix)
 
-        # Create LLM embedding model
-        embed_model = OpenAIEmbedding(embed_batch_size=20, model=EMBED_MODEL_NAME)
-        prompt_helper = PromptHelper(CONTEXT_WINDOW, NUM_OUTPUT, CHUNK_OVERLAP_RATIO)
-        service_context = ServiceContext.from_defaults(embed_model=embed_model, prompt_helper=prompt_helper)
-
-        # Embed the documents and persist the embeddings into Weaviate    
+        # Direct indexing without LlamaIndex    
         logger.info(f"INDEXING: Processing batch {batch_number}/{total_batches} with {len(documents)} documents")
-        vector_store = WeaviateVectorStore(weaviate_client=client, class_prefix=class_prefix)
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
         
-        # Index this batch
-        GPTVectorStoreIndex.from_documents(documents, storage_context=storage_context, service_context=service_context)
+        # Process documents directly
+        class_name = _class_name(class_prefix)
+        for i, doc in enumerate(documents):
+            try:
+                # Get embedding for document text
+                logger.debug(f"Computing embedding for document {i+1}/{len(documents)}: {doc.extra_info.get('title', 'Untitled')}")
+                embedding = self.ollama.get_embedding(doc.text)
+                
+                if embedding is None or len(embedding) == 0:
+                    logger.error(f"Failed to compute embedding for document {doc.doc_id}")
+                    continue
+                    
+                logger.debug(f"Successfully computed embedding with {len(embedding)} dimensions")
+                
+                # Prepare document data
+                doc_data = {
+                    "text": doc.text,
+                    "ref_doc_id": doc.doc_id,
+                    "title": doc.extra_info.get("title", ""),
+                    "link": doc.extra_info.get("link", ""),
+                    "source": doc.extra_info.get("source", ""),
+                    "scraped_at": doc.extra_info.get("scraped_at", 0),
+                    "_node_content": doc.to_json()
+                }
+                
+                # Add to Weaviate with embedding
+                client.data_object.create(
+                    data_object=doc_data,
+                    class_name=class_name,
+                    vector=embedding
+                )
+                logger.debug(f"Successfully indexed document {doc.doc_id} with vector embedding")
+                
+            except Exception as e:
+                logger.error(f"Error indexing document {doc.doc_id}: {str(e)}")
+                continue
 
         logger.info(f"INDEXING: Completed batch {batch_number}/{total_batches} - {len(documents)} documents indexed into '{class_prefix}_Node'")
         
