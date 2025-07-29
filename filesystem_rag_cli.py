@@ -51,22 +51,42 @@ from cli.interactive_session import InteractiveSession
 
 # Configure logging based on admin_toggle
 def setup_logging(admin_mode=False):
-    """Setup logging based on admin mode."""
-    if admin_mode:
-        # Admin mode: show all logs
-        level = logging.INFO
-        handler = logging.StreamHandler(sys.stdout)
-    else:
-        # Regular mode: suppress logs by using a null handler
-        level = logging.CRITICAL  # Only show critical errors
-        handler = logging.NullHandler()
+    """Setup logging based on admin mode while preserving file handlers."""
+    from datetime import datetime
+    import os
     
-    logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[handler],
-        force=True  # Force reconfiguration
+    # Ensure logs directory exists
+    os.makedirs('logs', exist_ok=True)
+    
+    # Get root logger
+    root_logger = logging.getLogger()
+    
+    # Clear existing handlers to avoid duplicates
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Always add file handler for persistent logging
+    file_handler = logging.FileHandler(
+        f'logs/filesystem_monitor_{datetime.now().strftime("%Y%m%d")}.log', 
+        mode='a'
     )
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(file_formatter)
+    root_logger.addHandler(file_handler)
+    
+    # Add console handler based on admin mode
+    if admin_mode:
+        # Admin mode: show logs on console
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        root_logger.addHandler(console_handler)
+        root_logger.setLevel(logging.INFO)
+    else:
+        # Regular mode: suppress console output but keep file logging
+        root_logger.setLevel(logging.INFO)  # Allow INFO and above to reach file handler
 
 # Check admin_toggle from state.py or default to False for CLI
 try:
