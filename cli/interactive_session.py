@@ -63,9 +63,6 @@ class InteractiveSession:
             # Start directory monitoring
             await self._start_monitoring()
             
-            # Initialize agent service
-            await self._initialize_agent_service()
-            
             # Setup signal handlers for graceful shutdown
             self._setup_signal_handlers()
             
@@ -105,8 +102,11 @@ class InteractiveSession:
         monitors_running = len([d for d in directories if d.enabled])
         styled_output.print_status_panel(directories, self.config.weaviate_url, monitors_running)
     
-    async def _initialize_agent_service(self) -> None:
-        """Initialize the agent service."""
+    async def _ensure_agent_service(self) -> bool:
+        """Ensure agent service is initialized (lazy initialization)."""
+        if self.agent_service is not None:
+            return True
+            
         try:
             with styled_output.create_status_spinner("Initializing agent service..."):
                 # Get monitored directories for tools
@@ -128,15 +128,19 @@ class InteractiveSession:
                         styled_output.print_success("✓ Agent service initialized with local LLM")
                     else:
                         styled_output.print_info("✓ Agent service initialized with OpenAI fallback")
+                    return True
                 else:
                     styled_output.print_warning("⚠ Agent service initialization failed")
                     if self.agent_service.initialization_error:
                         styled_output.print_info(f"  Error: {self.agent_service.initialization_error}")
+                    self.agent_service = None
+                    return False
                 
         except Exception as e:
             logger.error(f"Agent service initialization failed: {e}")
             styled_output.print_warning(f"⚠ Agent service unavailable: {e}")
             self.agent_service = None
+            return False
     
     async def _start_monitoring(self) -> None:
         """Start monitoring configured directories."""
@@ -193,8 +197,9 @@ class InteractiveSession:
             search_func=self._search_function
         )
         
-        # Add agent service to context
+        # Add agent service and lazy initialization function to context
         context.agent_service = self.agent_service
+        context.ensure_agent_service = self._ensure_agent_service
         
         while self.running:
             try:

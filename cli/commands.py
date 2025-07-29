@@ -81,12 +81,9 @@ class AddCommand(Command):
             except (IndexError, ValueError):
                 return "Error: --class-prefix requires a value"
         
-        # Generate class prefix if not provided
+        # Use unified class prefix for all directories
         if not class_prefix:
-            dir_name = Path(directory).name
-            class_prefix = re.sub(r'[^a-zA-Z0-9]', '', dir_name.title())
-            if not class_prefix:
-                class_prefix = "Directory"
+            class_prefix = "Janelia"  # Single unified class for all content
         
         try:
             # Add to configuration
@@ -95,34 +92,63 @@ class AddCommand(Command):
             # Start monitoring
             monitor = await context.directory_manager.add_monitor(dir_config)
             
-            # Perform initial indexing
-            result = f"Adding directory: {directory}\n"
-            result += f"Class prefix: {class_prefix}\n"
+            # Start background indexing with progress display
+            styled_output.print_info(f"Starting background indexing for: {directory}")
+            styled_output.print_info(f"Class prefix: {class_prefix}")
+            styled_output.print_info("You can continue using the CLI while indexing proceeds in the background.")
+            styled_output.console.print()
+            
+            # Create progress tracking
+            import time
+            start_time = time.time()
+            progress_stats = {
+                'files_discovered': 0,
+                'files_processed': 0,
+                'files_failed': 0,
+                'batches_indexed': 0,
+                'total_batches': 0,
+                'searchable_documents': 0
+            }
+            
+            def progress_callback(stage: str, current: int, total: int):
+                """Update progress stats and display."""
+                if stage == "searching":
+                    progress_stats['files_discovered'] = total
+                elif stage == "scraping":
+                    progress_stats['files_processed'] = current
+                elif stage == "indexing":
+                    progress_stats['batches_indexed'] = current
+                    progress_stats['total_batches'] = total
+                    progress_stats['searchable_documents'] = current * 20  # Estimate based on batch size
+                
+                # Update display
+                styled_output.print_indexing_progress(directory, progress_stats)
             
             try:
-                def progress_callback(current: int, total: int):
-                    if current == 0:
-                        styled_output.print_info(f"Indexing {total} files...")
-                    elif current == total:
-                        styled_output.print_success("Indexing complete")
-                
-                doc_count = await context.directory_manager.index_directory(
+                # Use streaming indexing for better performance and user experience
+                doc_count = await context.directory_manager.index_directory_streaming(
                     directory,
                     remove_existing=False,
                     progress_callback=progress_callback
                 )
                 
-                result += f"✓ Indexed {doc_count} files\n"
-                result += f"✓ Monitoring started"
+                # Show completion message
+                duration = time.time() - start_time
+                styled_output.print_indexing_complete(directory, doc_count, duration)
+                
+                # Save configuration
+                context.config.save()
+                
+                return ""  # Return empty since styled_output handles the display
                 
             except Exception as e:
-                result += f"⚠ Indexing failed: {e}\n"
-                result += f"✓ Monitoring started (will index files as they change)"
-            
-            # Save configuration
-            context.config.save()
-            
-            return result
+                styled_output.print_error(f"Indexing failed: {e}")
+                styled_output.print_info("✓ Monitoring started (will index files as they change)")
+                
+                # Save configuration even if indexing failed
+                context.config.save()
+                
+                return ""
             
         except Exception as e:
             return f"Error: {e}"
@@ -239,27 +265,17 @@ class SearchCommand(Command):
         
         query = " ".join(args)
         
-        # Get all class prefixes from configured directories
-        class_prefixes = [d.class_prefix for d in context.config.list_directories(enabled_only=True)]
-        
-        if not class_prefixes:
+        # Check if any directories are configured
+        directories = context.config.list_directories(enabled_only=True)
+        if not directories:
             return "No directories configured for searching."
         
         try:
-            # Search across all classes
-            results = []
-            for class_prefix in class_prefixes:
-                try:
-                    result = context.search_func(query, class_prefix)
-                    if result and "No results found" not in result:
-                        results.append(f"Results from {class_prefix}:\n{result}")
-                except Exception as e:
-                    logger.error(f"Search failed for {class_prefix}: {e}")
-                    continue
+            # Search in unified Janelia class
+            result = context.search_func(query, "Janelia")
             
-            if results:
-                combined_results = "\n\n" + "---\n\n".join(results)
-                styled_output.print_search_results(combined_results, query)
+            if result and "No results found" not in result:
+                styled_output.print_search_results(result, query)
                 return ""  # Return empty since styled_output handles the display
             else:
                 styled_output.print_warning(f"No results found for: '{query}'")
@@ -426,8 +442,14 @@ class AgentCommand(Command):
         message = " ".join(args)
         
         try:
-            # Get agent service from context
-            if not hasattr(context, 'agent_service') or not context.agent_service:
+            # Ensure agent service is initialized (lazy initialization)
+            if hasattr(context, 'ensure_agent_service') and not context.agent_service:
+                agent_available = await context.ensure_agent_service()
+                if not agent_available:
+                    return "Agent service initialization failed. Check configuration and server status."
+                # Update context with initialized service
+                context.agent_service = context.ensure_agent_service.__self__.agent_service
+            elif not hasattr(context, 'agent_service') or not context.agent_service:
                 return "Agent service not available. Check configuration and server status."
             
             # Query the agent
@@ -452,6 +474,11 @@ class AgentStatusCommand(Command):
     
     async def execute(self, args: List[str], context: CommandContext) -> str:
         try:
+            # Try lazy initialization first
+            if hasattr(context, 'ensure_agent_service') and not context.agent_service:
+                await context.ensure_agent_service()
+                context.agent_service = context.ensure_agent_service.__self__.agent_service
+                
             if not hasattr(context, 'agent_service') or not context.agent_service:
                 return "Agent service not configured."
             
@@ -498,6 +525,11 @@ class AgentHelpCommand(Command):
     
     async def execute(self, args: List[str], context: CommandContext) -> str:
         try:
+            # Try lazy initialization first
+            if hasattr(context, 'ensure_agent_service') and not context.agent_service:
+                await context.ensure_agent_service()
+                context.agent_service = context.ensure_agent_service.__self__.agent_service
+                
             if not hasattr(context, 'agent_service') or not context.agent_service:
                 help_text = """
 🤖 Filesystem RAG Agent (Not Available)
@@ -506,10 +538,10 @@ The agent service is not configured. To enable the agent:
 
 1. Install dependencies: pixi install
 2. Start llama-server (see agent-server command)
-3. Restart the CLI
+3. Use /agent command to initialize
 
 Basic agent commands:
-• /agent <message>     - Chat with the agent
+• /agent <message>     - Chat with the agent (will auto-initialize)
 • /agent-status        - Show agent status
 • /agent-server        - Show server command
 • /agent-help          - Show this help
@@ -533,6 +565,11 @@ class AgentServerCommand(Command):
     
     async def execute(self, args: List[str], context: CommandContext) -> str:
         try:
+            # Try lazy initialization first
+            if hasattr(context, 'ensure_agent_service') and not context.agent_service:
+                await context.ensure_agent_service()
+                context.agent_service = context.ensure_agent_service.__self__.agent_service
+                
             if not hasattr(context, 'agent_service') or not context.agent_service:
                 return "Agent service not configured."
             
@@ -557,6 +594,42 @@ class AgentServerCommand(Command):
             
         except Exception as e:
             return f"Error getting server command: {e}"
+
+
+class SyncCommand(Command):
+    """Sync filesystem with Weaviate database."""
+    
+    def __init__(self):
+        super().__init__(
+            "sync",
+            "Sync filesystem with Weaviate database to detect changes"
+        )
+    
+    async def execute(self, args: List[str], context: CommandContext) -> str:
+        try:
+            styled_output.print_info("🔄 Starting filesystem-database sync...")
+            
+            # Perform the sync
+            sync_results = await context.directory_manager.sync_filesystem_with_database()
+            
+            # Format results
+            result = "📊 Sync Results:\n\n"
+            result += f"• Files added: {sync_results['files_added']}\n"
+            result += f"• Files updated: {sync_results['files_updated']}\n"
+            result += f"• Files removed: {sync_results['files_removed']}\n"
+            result += f"• Files unchanged: {sync_results['files_unchanged']}\n"
+            
+            if sync_results['errors']:
+                result += f"\n❌ Errors ({len(sync_results['errors'])}):\n"
+                for error in sync_results['errors'][:5]:  # Show first 5 errors
+                    result += f"  • {error}\n"
+                if len(sync_results['errors']) > 5:
+                    result += f"  ... and {len(sync_results['errors']) - 5} more errors\n"
+            
+            return result
+            
+        except Exception as e:
+            return f"Sync failed: {e}"
 
 
 class ExitCommand(Command):
@@ -591,6 +664,7 @@ class CommandRegistry:
             SettingsCommand(),
             RestartCommand(),
             IndexCommand(),
+            SyncCommand(),
             AgentCommand(),
             AgentStatusCommand(),
             AgentHelpCommand(),

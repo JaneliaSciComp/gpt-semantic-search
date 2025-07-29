@@ -280,6 +280,100 @@ machine learning best practices
             spinner="dots"
         )
     
+    def print_indexing_progress(self, directory: str, stats: dict):
+        """Print detailed indexing progress with clean labels."""
+        
+        # Create a table for progress display
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Stage", style="bold white")
+        table.add_column("Progress", style="cyan")
+        table.add_column("Details", style="dim white")
+        
+        # Add directory info
+        table.add_row("", f"[bold]Adding directory:[/] {directory}", "")
+        
+        # Searching stage
+        if stats.get('files_discovered', 0) > 0:
+            table.add_row(
+                "SEARCHING:", 
+                f"[green]✓[/] {stats['files_discovered']} files found",
+                ""
+            )
+        else:
+            table.add_row("SEARCHING:", "[yellow]Discovering files...[/]", "")
+        
+        # Scraping stage
+        files_processed = stats.get('files_processed', 0)
+        files_discovered = stats.get('files_discovered', 0)
+        if files_discovered > 0:
+            percentage = (files_processed / files_discovered) * 100
+            if files_processed == files_discovered:
+                table.add_row(
+                    "SCRAPING:", 
+                    f"[green]✓[/] {files_processed}/{files_discovered} files processed",
+                    ""
+                )
+            else:
+                table.add_row(
+                    "SCRAPING:", 
+                    f"[yellow]{files_processed}[/]/{files_discovered} ({percentage:.1f}%)",
+                    f"Processing files..."
+                )
+        
+        # Indexing stage
+        batches_indexed = stats.get('batches_indexed', 0)
+        total_batches = stats.get('total_batches', 0)
+        if total_batches > 0:
+            if batches_indexed == total_batches:
+                table.add_row(
+                    "INDEXING:", 
+                    f"[green]✓[/] {batches_indexed}/{total_batches} batches complete",
+                    ""
+                )
+            else:
+                table.add_row(
+                    "INDEXING:", 
+                    f"[yellow]{batches_indexed}[/]/{total_batches} batches",
+                    f"Creating vectors..."
+                )
+        elif files_processed > 0:
+            table.add_row("INDEXING:", "[yellow]Starting...[/]", "")
+        
+        # Status summary
+        searchable_docs = stats.get('searchable_documents', 0)
+        if searchable_docs > 0:
+            table.add_row(
+                "", 
+                f"[bold green]STATUS:[/] {searchable_docs} documents searchable", 
+                ""
+            )
+        
+        # Clear and print table
+        self.console.clear()
+        self.console.print(table)
+    
+    def print_indexing_complete(self, directory: str, total_docs: int, duration: float):
+        """Print completion message for indexing."""
+        panel_content = f"""
+[green]✓ Directory added successfully[/]
+
+[bold]Directory:[/] {directory}
+[bold]Documents indexed:[/] {total_docs}
+[bold]Time taken:[/] {duration:.1f} seconds
+[bold]Status:[/] All documents are now searchable
+
+You can now search across this content naturally.
+        """
+        
+        panel = Panel(
+            panel_content.strip(),
+            title="[bold green]Indexing Complete[/]",
+            border_style="green",
+            box=box.ROUNDED
+        )
+        
+        self.console.print(panel)
+    
     def get_styled_prompt(self, directories_count: int = 0, 
                          monitors_active: int = 0) -> str:
         """Generate a styled prompt with context indicators."""
