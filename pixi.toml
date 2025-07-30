@@ -29,4 +29,10 @@ slack-sdk = "==3.27.1"
 scrapy = "==2.11.1"
 html2text = "==2024.2.26"
 slack-bolt = "*"
-docling = "*"
+#docling = "*"
+
+[feature.dev.dependencies]
+ruff = "*"
+
+[environments]
+dev = ["default", "dev"]

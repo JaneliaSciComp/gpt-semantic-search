@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
+import logging
 import os
 import sys
-import logging
 import warnings
 
 import bs4 as bs
 import html2text
 from llama_index.core import Document
+
 from indexing.weaviate_indexer import Indexer
 
 warnings.simplefilter("ignore", ResourceWarning)
@@ -26,55 +27,57 @@ text_maker.ignore_emphasis = True
 
 
 def webpage_to_text(soup):
-    """ Convert a generic web page to searchable text
-    """
+    """Convert a generic web page to searchable text"""
     title = soup.title.text
     text = text_maker.handle(str(soup))
-    return title,text
+    return title, text
 
 
 def janelia_org_to_text(soup):
-    """ Convert a janelia.org page to searchable text
-    """
-    title = soup.title.text.replace(" | Janelia Research Campus","")
+    """Convert a janelia.org page to searchable text"""
+    title = soup.title.text.replace(" | Janelia Research Campus", "")
     content_sections = soup.find_all("section", class_="content-section")
     if not content_sections:
-        return title,None
+        return title, None
     if len(content_sections) > 1:
         raise Exception("More than one content section")
     content = content_sections[0]
     # Remove useless content
-    for div in content.find_all("div", {'class':['panels-ipe-label','secondary_menu']}):
+    for div in content.find_all(
+        "div", {"class": ["panels-ipe-label", "secondary_menu"]}
+    ):
         div.decompose()
     # Html2text smashes text together if only tags separate it
     # This fix not only adds the spacing but also adds a separator for nav buttons
-    for span in content.find_all("span", {'class':'button-wrapper'}):
+    for span in content.find_all("span", {"class": "button-wrapper"}):
         sep = bs.NavigableString(" / ")
         span.insert(0, sep)
     text = text_maker.handle(str(content))
-    return title,text
+    return title, text
 
 
 def html_to_text(link, body):
-    """ Convert a web page to plain text for use as a GPT prompt.
-    """
-    soup = bs.BeautifulSoup(body,'lxml')
+    """Convert a web page to plain text for use as a GPT prompt."""
+    soup = bs.BeautifulSoup(body, "lxml")
     if "janelia.org" in link:
-        title,text = janelia_org_to_text(soup)
+        title, text = janelia_org_to_text(soup)
     else:
-        title,text = webpage_to_text(soup)
-    return title,text
+        title, text = webpage_to_text(soup)
+    return title, text
 
 
-class ArchivedWebSiteLoader():
-
+class ArchivedWebSiteLoader:
     def __init__(self, data_path):
         self.data_path = data_path
 
     def create_document(self, name, title, link, doc_text):
         logger.info(f"Document[id={name},title={title},link={link}]")
         logger.debug(doc_text)
-        return Document(text=doc_text, doc_id=name, extra_info={"source": SOURCE, "title": title, "link": link})
+        return Document(
+            text=doc_text,
+            doc_id=name,
+            extra_info={"source": SOURCE, "title": title, "link": link},
+        )
 
     def load_all_documents(self):
         documents = []
@@ -92,13 +95,44 @@ class ArchivedWebSiteLoader():
 
 
 def main():
-    
-    parser = argparse.ArgumentParser(description='Load the given web site export into Weaviate')
-    parser.add_argument('-i', '--input', type=str, required=True, help='Path to extracted web site export directory')
-    parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8777", help='Weaviate database URL')
-    parser.add_argument('-c', '--class-prefix', type=str, default="Web", help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".')
-    parser.add_argument('-r', '--remove-existing', default=False, action=argparse.BooleanOptionalAction, help='Remove existing "<prefix>_Node" class in Weaviate before starting.')
-    parser.add_argument('-d', '--debug', default=False, action=argparse.BooleanOptionalAction, help='Print debugging information, such as the message content.')
+    parser = argparse.ArgumentParser(
+        description="Load the given web site export into Weaviate"
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        type=str,
+        required=True,
+        help="Path to extracted web site export directory",
+    )
+    parser.add_argument(
+        "-w",
+        "--weaviate-url",
+        type=str,
+        default="http://localhost:8777",
+        help="Weaviate database URL",
+    )
+    parser.add_argument(
+        "-c",
+        "--class-prefix",
+        type=str,
+        default="Web",
+        help='Class prefix in Weaviate. The full class name will be "<prefix>_Node".',
+    )
+    parser.add_argument(
+        "-r",
+        "--remove-existing",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help='Remove existing "<prefix>_Node" class in Weaviate before starting.',
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Print debugging information, such as the message content.",
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -113,5 +147,6 @@ def main():
     indexer = Indexer(args.weaviate_url, args.class_prefix, args.remove_existing)
     indexer.index(documents)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

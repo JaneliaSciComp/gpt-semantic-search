@@ -3,6 +3,7 @@ import streamlit as st
 st.set_page_config(page_title="JaneliaGPT - About", page_icon="ℹ️")
 
 from state import init_state
+
 init_state()
 
 num_results = st.session_state["num_results"]

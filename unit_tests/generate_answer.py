@@ -1,31 +1,27 @@
-
-
-import os
-import re
-import sys
-import argparse
 import logging
+import re
 import warnings
-import weaviate
-from slack_sdk import WebClient
-import streamlit as st
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import Settings, PromptHelper, GPTVectorStoreIndex, StorageContext
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.vector_stores.weaviate import WeaviateVectorStore
-from llama_index.core.vector_stores.types import VectorStoreQueryMode
-from llama_index.llms.openai import OpenAI
-warnings.simplefilter("ignore", ResourceWarning)
 
+import weaviate
+from llama_index.core import GPTVectorStoreIndex, PromptHelper, Settings, StorageContext
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.vector_stores.types import VectorStoreQueryMode
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
+from llama_index.vector_stores.weaviate import WeaviateVectorStore
+
+warnings.simplefilter("ignore", ResourceWarning)
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-#refactor not to use slack for a source
+
+# refactor not to use slack for a source
 class SemanticSearchService:
     warnings.simplefilter("ignore")
+
     def __init__(self, weaviate_url):
         self.weaviate_url = weaviate_url
         self.weaviate_client = self.get_weaviate_client()
@@ -36,8 +32,6 @@ class SemanticSearchService:
         if not client.is_live():
             raise Exception(f"Weaviate is not live at {self.weaviate_url}")
         return client
-
-    
 
     def get_query_engine(self):
         # Assuming settings like model, class_prefix, etc., are set elsewhere or passed as parameters
@@ -50,7 +44,9 @@ class SemanticSearchService:
         Settings.chunk_size = 512
         Settings.prompt_helper = prompt_helper
 
-        vector_store = WeaviateVectorStore(weaviate_client=self.weaviate_client, class_prefix="Janelia")
+        vector_store = WeaviateVectorStore(
+            weaviate_client=self.weaviate_client, class_prefix="Janelia"
+        )
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         index = GPTVectorStoreIndex([], storage_context=storage_context)
 
@@ -65,11 +61,12 @@ class SemanticSearchService:
         return query_engine
 
     def generate_response(self, query):
-        query = re.sub("\"", "", query)
+        query = re.sub('"', "", query)
         response = self.query_engine.query(query)
         return response.response
 
-# Example usage 
+
+# Example usage
 if __name__ == "__main__":
     weaviate_url = "http://localhost:8777"
     service = SemanticSearchService(weaviate_url)
