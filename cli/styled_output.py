@@ -213,9 +213,6 @@ class StyledOutput:
         help_content = """
 # Filesystem RAG Interactive CLI
 
-## Search Mode (Default)
-Just type your query naturally - no commands needed!
-
 ## Available Commands
 
 ### Directory Management
