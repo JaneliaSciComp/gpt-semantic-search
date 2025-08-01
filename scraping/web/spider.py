@@ -74,6 +74,17 @@ class MySpider(CrawlSpider):
         except Exception as e:
             print(f"Error processing PDF with Docling: {e}")
             return None
+    def process_pdf_content(self, response):
+        """Process PDF content using Docling"""
+        try:
+            # Convert PDF bytes to Docling document
+            result = docling_converter.convert_bytes(response.body)
+            # Export to markdown format
+            markdown_content = result.document.export_to_markdown()
+            return markdown_content
+        except Exception as e:
+            print(f"Error processing PDF with Docling: {e}")
+            return None
 
     def parse_item(self, response):
         url = response.url
