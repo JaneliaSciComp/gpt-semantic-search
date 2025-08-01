@@ -1,45 +1,43 @@
 #!/usr/bin/env python
 
+import argparse
+import logging
 import os
 import re
 import sys
-import argparse
 import textwrap
-import logging
-import warnings
-from typing import Dict, List
 import time
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import Settings
-from llama_index.core import PromptHelper, GPTVectorStoreIndex
-from llama_index.llms.openai import OpenAI
-from llama_index.core import StorageContext
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine, TransformQueryEngine
-from llama_index.vector_stores.weaviate import WeaviateVectorStore
-from llama_index.core.vector_stores.types import VectorStoreQueryMode
-from llama_index.core.indices.query.query_transform import HyDEQueryTransform
+import warnings
 
-import weaviate
 import streamlit as st
+import weaviate
+from llama_index.core import GPTVectorStoreIndex, PromptHelper, Settings, StorageContext
+from llama_index.core.indices.query.query_transform import HyDEQueryTransform
+from llama_index.core.query_engine import RetrieverQueryEngine, TransformQueryEngine
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.vector_stores.types import VectorStoreQueryMode
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
+from llama_index.vector_stores.weaviate import WeaviateVectorStore
 from slack_sdk import WebClient
 
 st.set_page_config(page_title="JaneliaGPT", page_icon="🔍")
 
 from state import init_state
+
 init_state()
 
 warnings.simplefilter("ignore", ResourceWarning)
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logging.getLogger('llama_index').setLevel(logging.DEBUG)
-logging.getLogger('openai').setLevel(logging.DEBUG)
+logging.getLogger("llama_index").setLevel(logging.DEBUG)
+logging.getLogger("openai").setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # Constants
-EMBED_MODEL_NAME="text-embedding-3-large"
+EMBED_MODEL_NAME = "text-embedding-3-large"
 CONTEXT_WINDOW = 4096
 NUM_OUTPUT = 256
 CHUNK_OVERLAP_RATIO = 0.1
@@ -53,23 +51,16 @@ Currently the following sources are indexed:
 * Janelia Wiki (spaces 'SCSW', 'SCS', and 'ScientificComputing')
 """
 
-NODE_SCHEMA: List[Dict] = [
-    {
-        "dataType": ["text"],
-        "description": "User query",
-        "name": "query"
-    },
-    {
-        "dataType": ["text"],
-        "description": "GPT response",
-        "name": "response"
-    },
+NODE_SCHEMA: list[dict] = [
+    {"dataType": ["text"], "description": "User query", "name": "query"},
+    {"dataType": ["text"], "description": "GPT response", "name": "response"},
     {
         "dataType": ["text"],
         "description": "Survey response",
         "name": "survey",
     },
 ]
+
 
 def create_survey_schema(weaviate_client) -> None:
     """Create schema."""
@@ -84,18 +75,14 @@ def create_survey_schema(weaviate_client) -> None:
     properties = NODE_SCHEMA
     class_obj = {
         "class": SURVEY_CLASS,  # <= note the capital "A".
-        "description": f"Class for survey responses",
+        "description": "Class for survey responses",
         "properties": properties,
     }
     weaviate_client.schema.create_class(class_obj)
 
 
 def record_log(weaviate_client, query, response):
-    metadata = {
-        "query": query,
-        "response": response,
-        'survey': 'Unknown'
-    }
+    metadata = {"query": query, "response": response, "survey": "Unknown"}
     return weaviate_client.data_object.create(metadata, SURVEY_CLASS)
 
 
@@ -108,7 +95,7 @@ def record_survey(weaviate_client, db_id, survey):
 
 def get_unique_nodes(nodes):
     docs_ids = set()
-    unique_nodes = list()
+    unique_nodes = []
     for node in nodes:
         if node.node.ref_doc_id not in docs_ids:
             docs_ids.add(node.node.ref_doc_id)
@@ -126,13 +113,12 @@ def escape_text(text):
 @st.cache_data
 def get_message_link(_slack_client, channel, ts):
     res = _slack_client.chat_getPermalink(channel=channel, message_ts=ts)
-    if res['ok']:
-        return res['permalink']
-    
+    if res["ok"]:
+        return res["permalink"]
+
 
 @st.cache_resource
 def get_weaviate_client(weaviate_url):
-
     client = weaviate.Client(weaviate_url)
 
     if not client.is_live():
@@ -143,7 +129,7 @@ def get_weaviate_client(weaviate_url):
 
 @st.cache_resource
 def get_slack_client():
-    slack_client = WebClient(token=os.environ.get('SLACK_TOKEN'))
+    slack_client = WebClient(token=os.environ.get("SLACK_TOKEN"))
     res = slack_client.api_test()
     if not res["ok"]:
         logger.error(f"Error initializing Slack API: {res['error']}")
@@ -153,7 +139,6 @@ def get_slack_client():
 
 
 def get_query_engine(_weaviate_client):
-
     model = st.session_state["model"]
     class_prefix = st.session_state["class_prefix"]
     temperature = st.session_state["temperature"] / 100.0
@@ -168,7 +153,9 @@ def get_query_engine(_weaviate_client):
     logger.info(f"  search_alpha: {search_alpha}")
     logger.info(f"  num_results: {num_results}")
     logger.info(f"  hyde_enabled: {hyde_enabled} (type: {type(hyde_enabled)})")
-    logger.info(f"  session_state.hyde_enabled: {st.session_state.get('hyde_enabled', 'NOT_SET')}")
+    logger.info(
+        f"  session_state.hyde_enabled: {st.session_state.get('hyde_enabled', 'NOT_SET')}"
+    )
 
     llm = OpenAI(model=model, temperature=temperature)
     embed_model = OpenAIEmbedding(model=EMBED_MODEL_NAME)
@@ -179,7 +166,9 @@ def get_query_engine(_weaviate_client):
     Settings.chunk_size = 512
     Settings.prompt_helper = prompt_helper
 
-    vector_store = WeaviateVectorStore(weaviate_client=_weaviate_client, class_prefix=class_prefix)
+    vector_store = WeaviateVectorStore(
+        weaviate_client=_weaviate_client, class_prefix=class_prefix
+    )
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
     index = GPTVectorStoreIndex([], storage_context=storage_context)
 
@@ -193,7 +182,7 @@ def get_query_engine(_weaviate_client):
 
     # construct query engine
     query_engine = RetrieverQueryEngine.from_args(retriever)
-    
+
     # Apply HyDE transformation if enabled
     if hyde_enabled:
         try:
@@ -201,7 +190,9 @@ def get_query_engine(_weaviate_client):
             query_engine = TransformQueryEngine(query_engine, hyde_transform)
             logger.info("✓ HyDE query transformation applied successfully")
         except Exception as e:
-            logger.warning(f"✗ Failed to apply HyDE transformation: {e}. Falling back to regular query engine.")
+            logger.warning(
+                f"✗ Failed to apply HyDE transformation: {e}. Falling back to regular query engine."
+            )
     else:
         logger.info("✓ Using regular query engine (HyDE disabled)")
 
@@ -209,9 +200,8 @@ def get_query_engine(_weaviate_client):
 
 
 def get_response(_query_engine, _slack_client, query):
-
-    # Escape certain characters which the 
-    query = re.sub("\"", "", query)
+    # Escape certain characters which the
+    query = re.sub('"', "", query)
 
     response = _query_engine.query(query)
 
@@ -224,19 +214,28 @@ def get_response(_query_engine, _slack_client, query):
         text = textwrap.shorten(text, width=100, placeholder="...")
         text = escape_text(text)
 
-        source = extra_info['source']
+        source = extra_info["source"]
 
-        if source.lower() == 'slack':
-            channel_id = extra_info['channel']
-            ts = extra_info['ts']
+        if source.lower() == "slack":
+            channel_id = extra_info["channel"]
+            ts = extra_info["ts"]
             msg += f"* {source}: [{text}]({get_message_link(_slack_client, channel_id, ts)})\n"
         else:
             msg += f"* {source}: [{extra_info['title']}]({extra_info['link']})\n"
 
     return msg
 
-parser = argparse.ArgumentParser(description='Web service for semantic search using Weaviate and OpenAI')
-parser.add_argument('-w', '--weaviate-url', type=str, default="http://localhost:8080", help='Weaviate database URL')
+
+parser = argparse.ArgumentParser(
+    description="Web service for semantic search using Weaviate and OpenAI"
+)
+parser.add_argument(
+    "-w",
+    "--weaviate-url",
+    type=str,
+    default="http://localhost:8080",
+    help="Weaviate database URL",
+)
 args = parser.parse_args()
 
 weaviate_client = get_weaviate_client(args.weaviate_url)
@@ -250,36 +249,38 @@ else:
     st.sidebar.info("🔬 HyDE: Disabled")
 
 st.title("Ask JaneliaGPT")
-query = st.text_input("What would you like to ask?", '', key="query")
+query = st.text_input("What would you like to ask?", "", key="query")
 
 
 is_new_query = query and query != st.session_state.last_processed_query
 
 if is_new_query or st.button("Submit"):
-    if query:  
+    if query:
         hyde_enabled = st.session_state.get("hyde_enabled", False)
         logger.info(f"Query: {query}")
         logger.info(f"HyDE enabled: {hyde_enabled}")
-        
+
         start_time = time.time()
-        
+
         try:
             query_engine = get_query_engine(weaviate_client)
             slack_client = get_slack_client()
-            
+
             # Use the cached response function to avoid regeneration
             msg = get_response(query_engine, slack_client, query)
-            
+
             end_time = time.time()
             response_time = end_time - start_time
-            logger.info(f"Query processed in {response_time:.2f} seconds (HyDE: {hyde_enabled})")
-            
+            logger.info(
+                f"Query processed in {response_time:.2f} seconds (HyDE: {hyde_enabled})"
+            )
+
             # Only create a new log entry if this is truly a new query
             if query != st.session_state.last_processed_query:
                 st.session_state.db_id = record_log(weaviate_client, query, msg)
                 st.session_state.last_processed_query = query
                 st.session_state.survey_complete = False
-            
+
             st.session_state.response = msg
             st.session_state.response_error = False
             logger.info(f"Response saved as {st.session_state.db_id}: {msg}")
@@ -300,7 +301,6 @@ elif st.session_state.response:
 
 
 def survey_click(survey_response):
-
     st.session_state.survey = survey_response
     st.session_state.survey_complete = True
 
@@ -309,7 +309,7 @@ def survey_click(survey_response):
     db_id = st.session_state.db_id
     record_survey(weaviate_client, db_id, survey_response)
     logger.info(f"Logged survey response: {survey_response}")
-    del st.session_state['survey']
+    del st.session_state["survey"]
 
 
 if st.session_state.response and not st.session_state.survey_complete:
@@ -321,13 +321,14 @@ if st.session_state.response and not st.session_state.survey_complete:
                 text-align: end;
             } 
         </style>
-        """,unsafe_allow_html=True
+        """,
+        unsafe_allow_html=True,
     )
 
     with st.form(key="survey_form"):
         st.markdown("Was your question answered?")
-        col1, col2 = st.columns([1,1])
+        col1, col2 = st.columns([1, 1])
         with col1:
-            st.form_submit_button("Yes", on_click=survey_click, args=('Yes', ))
+            st.form_submit_button("Yes", on_click=survey_click, args=("Yes",))
         with col2:
-            st.form_submit_button("No", on_click=survey_click, args=('No', ))
+            st.form_submit_button("No", on_click=survey_click, args=("No",))

@@ -3,6 +3,7 @@ import streamlit as st
 st.set_page_config(page_title="JaneliaGPT - Settings", page_icon="⚙️")
 
 from state import init_state
+
 init_state()
 
 PARAM_EXPLANATION = """
@@ -23,20 +24,24 @@ st.markdown("# JaneliaGPT Settings")
 
 st.selectbox("Model", st.session_state["model_options"], key="model")
 
-col1, col2 = st.columns([1,1])
+col1, col2 = st.columns([1, 1])
 with col1:
     st.slider("Search Alpha", 0, 100, key="search_alpha")
     st.slider("Num Results", 0, 10, key="num_results")
     st.slider("Temperature", 0, 100, key="temperature")
 with col2:
     st.markdown(PARAM_EXPLANATION)
-    
+
 st.text_input("Weaviate Class Prefix", key="class_prefix")
 
 st.markdown("## HyDE Settings")
-col3, col4 = st.columns([1,1])
+col3, col4 = st.columns([1, 1])
 with col3:
-    st.checkbox("Enable HyDE", key="hyde_enabled", help="Enable Hypothetical Document Embedding for improved search quality")
+    st.checkbox(
+        "Enable HyDE",
+        key="hyde_enabled",
+        help="Enable Hypothetical Document Embedding for improved search quality",
+    )
 with col4:
     st.markdown(HYDE_EXPLANATION)
 
