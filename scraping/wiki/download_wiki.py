@@ -48,7 +48,7 @@ def get_page(page_id):
 
 
 def get_link(path):
-    return "%s%s" % (confluence_url, path)
+    return f"{confluence_url}{path}"
 
 
 limit = 50

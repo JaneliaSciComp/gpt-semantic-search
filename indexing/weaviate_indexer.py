@@ -2,7 +2,7 @@ import logging
 import sys
 import warnings
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 import weaviate
 from llama_index.core import (
@@ -28,7 +28,7 @@ CHUNK_OVERLAP_RATIO = 0.1
 # 1) upgrade string->text for proper tokenization
 # 2) set tokenization which defaults to whitespace for some reason
 # 3) disable indexes on metadata json
-NODE_SCHEMA: List[Dict] = [
+NODE_SCHEMA: list[dict] = [
     {
         "name": "ref_doc_id",
         "dataType": ["text"],

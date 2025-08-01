@@ -11,7 +11,7 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -67,7 +67,7 @@ def get_workspace_info(client: WebClient) -> str:
         return "unknown-workspace"
 
 
-def get_all_users(client: WebClient, logger: logging.Logger) -> List[Dict[str, Any]]:
+def get_all_users(client: WebClient, logger: logging.Logger) -> list[dict[str, Any]]:
     """Fetch all users from the workspace."""
     try:
         users = []
@@ -88,7 +88,7 @@ def get_all_users(client: WebClient, logger: logging.Logger) -> List[Dict[str, A
         return []
 
 
-def get_all_channels(client: WebClient, logger: logging.Logger) -> List[Dict[str, Any]]:
+def get_all_channels(client: WebClient, logger: logging.Logger) -> list[dict[str, Any]]:
     try:
         channels = []
         cursor = None
@@ -119,7 +119,7 @@ def fetch_channel_messages(
     channel_name: str,
     oldest_ts: float,
     logger: logging.Logger,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     all_messages = []
     cursor = None
     threaded_messages = set()  # Track which messages we've already processed as threads
@@ -184,7 +184,7 @@ def fetch_channel_messages(
 
 def fetch_complete_thread(
     client: WebClient, channel_id: str, thread_ts: str, logger: logging.Logger
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Fetch complete thread including parent message and all replies using conversations.replies."""
     all_thread_messages = []
     cursor = None
@@ -228,8 +228,8 @@ def fetch_complete_thread(
 
 
 def organize_messages_by_date(
-    messages: List[Dict[str, Any]],
-) -> Dict[str, List[Dict[str, Any]]]:
+    messages: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     messages_by_date = defaultdict(list)
 
     for msg in messages:
@@ -244,8 +244,8 @@ def organize_messages_by_date(
 
 
 def enrich_messages_with_user_profiles(
-    messages: List[Dict[str, Any]], users: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    messages: list[dict[str, Any]], users: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Enrich messages with user profile information from users list."""
     # Build user ID to profile mapping
     # Emulate block syntax from slack web export
@@ -283,11 +283,11 @@ def enrich_messages_with_user_profiles(
 
 
 def save_messages(
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     channel_name: str,
     workspace_name: str,
     run_timestamp: int,
-    users: List[Dict[str, Any]],
+    users: list[dict[str, Any]],
     logger: logging.Logger,
 ) -> int:
     if not messages:
@@ -336,8 +336,8 @@ def save_messages(
 
 
 def save_metadata_files(
-    users: List[Dict[str, Any]],
-    channels: List[Dict[str, Any]],
+    users: list[dict[str, Any]],
+    channels: list[dict[str, Any]],
     workspace_name: str,
     run_timestamp: int,
     logger: logging.Logger,

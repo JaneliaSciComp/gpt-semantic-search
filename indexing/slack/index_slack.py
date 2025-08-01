@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Constants
 SOURCE = "Slack"
 DOCUMENT_PAUSE_SECS = 300
-IGNORED_SUBTYPES = set(["channel_join", "channel_leave", "bot_message"])
+IGNORED_SUBTYPES = {"channel_join", "channel_leave", "bot_message"}
 
 
 def get(dictionary, key):
@@ -60,22 +60,19 @@ class ArchivedSlackLoader:
         """Generator which returns users from the users.json file."""
         with open(f"{self.data_path}/users.json") as f:
             users = json.load(f)
-            for user in users:
-                yield user
+            yield from users
 
     def get_channels(self):
         """Generator which returns channels from the channels.json file."""
         with open(f"{self.data_path}/channels.json") as f:
             channels = json.load(f)
-            for channel in channels:
-                yield channel
+            yield from channels
 
     def get_messages(self, channel_name):
         """Generator which returns messages from the json files in the given channel directory."""
         for messages_file in glob.glob(f"{self.data_path}/{channel_name}/*.json"):
             with open(messages_file) as f:
-                for message in json.load(f):
-                    yield message
+                yield from json.load(f)
 
     def extract_text(self, elements):
         """
@@ -194,7 +191,7 @@ class ArchivedSlackLoader:
         doc_text = ""
         start_ts = None
 
-        for thread_id in sorted(list(messages.keys())):
+        for thread_id in sorted(messages.keys()):
             # Create a new document whenever messages are separated by a longer pause
             if doc_text and thread_id - prev_id > DOCUMENT_PAUSE_SECS:
                 doc = self.create_document(channel_id, start_ts, doc_text)
@@ -222,7 +219,7 @@ class ArchivedSlackLoader:
 
     def load_all_documents(self):
         documents = []
-        for channel_name in self.channel2id.keys():
+        for channel_name in self.channel2id:
             for doc in self.load_documents(channel_name):
                 documents.append(doc)
         return documents

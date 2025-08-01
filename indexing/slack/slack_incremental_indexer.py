@@ -10,7 +10,6 @@ import sys
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from llama_index.core import Document
 
@@ -39,7 +38,7 @@ logger = setup_logging()
 
 SOURCE = "Slack"
 DOCUMENT_PAUSE_SECS = 300
-IGNORED_SUBTYPES = set(["channel_join", "channel_leave", "bot_message"])
+IGNORED_SUBTYPES = {"channel_join", "channel_leave", "bot_message"}
 
 
 def get(dictionary, key):
@@ -58,7 +57,7 @@ def find_folders_to_process(
     data_path: str = "../../data/slack",
     indexer: Indexer = None,
     buffer_hours: float = 0.5,
-) -> List[Tuple[str, str, float]]:
+) -> list[tuple[str, str, float]]:
     """Find all successful folders that need indexing based on database state."""
     if not os.path.exists(data_path):
         return []
@@ -108,7 +107,7 @@ def find_folders_to_process(
 
 def find_failed_folders(
     data_path: str = "../../data/slack",
-) -> List[Tuple[str, str, float]]:
+) -> list[tuple[str, str, float]]:
     """Find all failed folders for retry."""
     if not os.path.exists(data_path):
         return []
@@ -275,7 +274,7 @@ class SlackLoader:
 
         return ts, text_msg
 
-    def load_documents(self, channel_name: str) -> List[Document]:
+    def load_documents(self, channel_name: str) -> list[Document]:
         channel_id = self.channel2id.get(channel_name, channel_name)
         messages = {}
 
@@ -333,9 +332,9 @@ class SlackLoader:
 
         return documents
 
-    def load_all_documents(self) -> List[Document]:
+    def load_all_documents(self) -> list[Document]:
         documents = []
-        for channel_name in self.channel2id.keys():
+        for channel_name in self.channel2id:
             channel_docs = self.load_documents(channel_name)
             if channel_docs:
                 logger.info(f"Found {len(channel_docs)} documents in {channel_name}")
@@ -381,7 +380,7 @@ def process_folder(
 
 def retry_failed_folders(
     data_path: str, weaviate_url: str, class_prefix: str, debug: bool
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """Retry all failed folders."""
     failed_folders = find_failed_folders(data_path)
 

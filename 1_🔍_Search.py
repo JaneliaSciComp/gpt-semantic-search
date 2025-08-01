@@ -8,7 +8,6 @@ import sys
 import textwrap
 import time
 import warnings
-from typing import Dict, List
 
 import streamlit as st
 import weaviate
@@ -52,7 +51,7 @@ Currently the following sources are indexed:
 * Janelia Wiki (spaces 'SCSW', 'SCS', and 'ScientificComputing')
 """
 
-NODE_SCHEMA: List[Dict] = [
+NODE_SCHEMA: list[dict] = [
     {"dataType": ["text"], "description": "User query", "name": "query"},
     {"dataType": ["text"], "description": "GPT response", "name": "response"},
     {
@@ -96,7 +95,7 @@ def record_survey(weaviate_client, db_id, survey):
 
 def get_unique_nodes(nodes):
     docs_ids = set()
-    unique_nodes = list()
+    unique_nodes = []
     for node in nodes:
         if node.node.ref_doc_id not in docs_ids:
             docs_ids.add(node.node.ref_doc_id)

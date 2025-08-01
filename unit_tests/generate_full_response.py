@@ -73,7 +73,7 @@ class SemanticSearchService:
 
     def get_unique_nodes(self, nodes):
         docs_ids = set()
-        unique_nodes = list()
+        unique_nodes = []
         for node in nodes:
             if node.node.ref_doc_id not in docs_ids:
                 docs_ids.add(node.node.ref_doc_id)
